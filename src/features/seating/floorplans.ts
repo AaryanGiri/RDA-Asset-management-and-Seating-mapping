@@ -1,5 +1,4 @@
 import type { SeatType } from '@/lib/types'
-import { FLOOR1_SEATS } from './floor1Seats'
 
 // Geometry is authored in viewBox units; seats are emitted as normalized 0–1
 // coordinates so the marker overlay stays pixel-perfect through zoom / pan / resize.
@@ -72,56 +71,74 @@ export interface FloorGeometry {
   fixedSeats?: GeneratedSeat[]
   /** Standalone zone captions drawn over open areas. */
   zoneLabels?: { x: number; y: number; text: string }[]
+  /** Building floor plate (architectural rendering). */
+  plate?: Rect
+  /** Walkable circulation lanes. */
+  corridors?: (Rect & { dir?: 'h' | 'v' })[]
+  /** Points of interest (entry, etc.). */
+  markers?: { x: number; y: number; label: string; kind: 'entry' }[]
+  /** Seat marker radius in viewBox units (default 12). */
+  markerR?: number
 }
 
-// ── Floor 1 — RODIC "Office at Aga Khan Foundation" · vector re-creation ──────
-// Room layout matches the real plan (positions traced from the drawing); the 68
-// workstations (W1–W68) and 8 cabins (C1–C8) sit at EXACT coordinates extracted
-// from the source PDF's text layer (floor1Seats.ts). viewBox 932 × 714.
+// ── Floor 1 — RODIC "Office at Aga Khan Foundation" · 2D architectural plan ───
+// Rendered as a proper floor plan: floor plate + exterior wall, walkable corridors,
+// rooms as walled cells grouped into blocks, and open workstation bays. viewBox 1200×780.
 const FLOOR_1: FloorGeometry = {
   id: 'f1',
-  vbw: 932,
-  vbh: 714,
-  slabRect: { x: 0, y: 0, w: 932, h: 714 },
-  slab: 'M22 0 H910 Q932 0 932 22 V692 Q932 714 910 714 H22 Q0 714 0 692 V22 Q0 0 22 0 Z',
-  cores: [{ x: 690, y: 618, w: 60, h: 92 }],
-  fixedSeats: FLOOR1_SEATS,
-  banks: [],
-  cabins: [],
-  rooms: [
-    // ── top band (aligned tops / shared edges) ──
-    { id: 'av', label: 'Audio Visual Room', sub: '35ʹ8 × 25ʹ', kind: 'training', x: 4, y: 6, w: 250, h: 190 },
-    { id: 'balcony1', label: '3ʹ Balcony', kind: 'balcony', x: 278, y: 56, w: 150, h: 22 },
-    { id: 'meet1', label: 'Meeting Room 1', sub: '15 seats', kind: 'meeting', chairs: 12, x: 278, y: 84, w: 150, h: 106 },
-    { id: 'balcony2', label: '3ʹ Balcony', kind: 'balcony', x: 470, y: 56, w: 180, h: 22 },
-    { id: 'cmd', label: 'CMD Office', sub: '22ʹ6 × 21ʹ6', kind: 'office', x: 470, y: 84, w: 180, h: 152 },
-    { id: 'store', label: 'Store', kind: 'service', x: 664, y: 84, w: 86, h: 50 },
-    { id: 'cmdToilet', label: 'CMD Toilet', kind: 'service', x: 664, y: 140, w: 86, h: 50 },
-    { id: 'openBalcony', label: 'Open Balcony', kind: 'balcony', x: 664, y: 196, w: 86, h: 50 },
-    // ── centre-left column ──
-    { id: 'foyer', label: 'Foyer', kind: 'reception', x: 190, y: 202, w: 88, h: 40 },
-    { id: 'courtyard', label: 'Central Courtyard', kind: 'courtyard', x: 4, y: 204, w: 178, h: 166 },
-    { id: 'cabin1', label: 'Cabin 1', kind: 'cabin', x: 196, y: 300, w: 72, h: 64 },
-    // ── centre band ──
-    { id: 'meet2', label: 'Meeting Room 2', sub: '9 seats', kind: 'meeting', chairs: 8, x: 278, y: 204, w: 150, h: 96 },
-    { id: 'lounge', label: 'Lounge', kind: 'reception', x: 470, y: 252, w: 80, h: 36 },
-    { id: 'waiting', label: 'Waiting', kind: 'reception', x: 360, y: 306, w: 80, h: 30 },
-    { id: 'cabin2', label: 'C2', kind: 'cabin', x: 337, y: 360, w: 40, h: 92 },
-    { id: 'cabin3', label: 'C3', kind: 'cabin', x: 374, y: 360, w: 40, h: 92 },
-    { id: 'cabin4', label: 'C4', kind: 'cabin', x: 431, y: 356, w: 40, h: 92 },
-    { id: 'cabin5', label: 'C5', kind: 'cabin', x: 510, y: 360, w: 40, h: 92 },
-    { id: 'cabin6', label: 'C6', kind: 'cabin', x: 545, y: 360, w: 40, h: 92 },
-    { id: 'meet3', label: 'Meeting Room 3', sub: '6 pax', kind: 'meeting', chairs: 6, x: 595, y: 352, w: 60, h: 98 },
-    // ── lower band ──
-    { id: 'cabin7', label: 'Cabin 7', kind: 'cabin', x: 356, y: 500, w: 80, h: 100 },
-    { id: 'cabin8', label: 'Cabin 8', kind: 'cabin', x: 440, y: 505, w: 76, h: 100 },
-    { id: 'meet4', label: 'Meeting Room 4', sub: '4 pax', kind: 'meeting', chairs: 4, x: 60, y: 560, w: 96, h: 64 },
-    { id: 'female', label: 'Female Toilet', kind: 'service', x: 560, y: 486, w: 96, h: 90 },
-    { id: 'male', label: 'Male Toilet', kind: 'service', x: 600, y: 600, w: 84, h: 110 },
+  vbw: 1200,
+  vbh: 780,
+  slabRect: { x: 32, y: 30, w: 1136, h: 720 },
+  slab: '',
+  plate: { x: 32, y: 30, w: 1136, h: 720 },
+  cores: [],
+  markerR: 8,
+  banks: [
+    // West Wing open bay — W1–W28 (clean 7×4 grid)
+    { zone: 'West Wing', type: 'workstation', prefix: 'W', startN: 1, x: 62, y: 448, cols: 7, rows: 4, dx: 28, dy: 34 },
+    // East Wing open bay — W29–W68 (clean 8×5 grid)
+    { zone: 'East Wing', type: 'workstation', prefix: 'W', startN: 29, x: 858, y: 442, cols: 8, rows: 5, dx: 39, dy: 56 },
   ],
-  zoneLabels: [
-    { x: 20, y: 502, text: 'West Wing' },
-    { x: 758, y: 296, text: 'East Wing' },
+  cabins: [
+    { seatNumber: 'C1', zone: 'Cabins', x: 300, y: 404, w: 66, h: 140 },
+    { seatNumber: 'C2', zone: 'Cabins', x: 370, y: 404, w: 66, h: 140 },
+    { seatNumber: 'C3', zone: 'Cabins', x: 440, y: 404, w: 66, h: 140 },
+    { seatNumber: 'C4', zone: 'Cabins', x: 510, y: 404, w: 66, h: 140 },
+    { seatNumber: 'C5', zone: 'Cabins', x: 580, y: 404, w: 66, h: 140 },
+    { seatNumber: 'C6', zone: 'Cabins', x: 650, y: 404, w: 66, h: 140 },
+    { seatNumber: 'C7', zone: 'Cabins', x: 300, y: 592, w: 118, h: 120 },
+    { seatNumber: 'C8', zone: 'Cabins', x: 424, y: 592, w: 118, h: 120 },
+  ],
+  corridors: [
+    { x: 250, y: 34, w: 46, h: 712, dir: 'v' }, // left spine
+    { x: 36, y: 352, w: 1128, h: 46, dir: 'h' }, // main spine
+    { x: 296, y: 550, w: 524, h: 40, dir: 'h' }, // lower spine (centre)
+  ],
+  markers: [{ x: 273, y: 748, label: 'Entry', kind: 'entry' }],
+  rooms: [
+    // ── left column ──
+    { id: 'av', label: 'Audio Visual Room', sub: '35ʹ8 × 25ʹ', kind: 'training', x: 36, y: 34, w: 214, h: 182 },
+    { id: 'courtyard', label: 'Central Courtyard', kind: 'courtyard', x: 36, y: 216, w: 214, h: 136 },
+    { id: 'westWing', label: 'West Wing', kind: 'open', x: 36, y: 398, w: 214, h: 200 },
+    { id: 'meet4', label: 'Meeting Room 4', sub: '9ʹ × 8ʹ10', kind: 'meeting', chairs: 4, x: 36, y: 602, w: 214, h: 144 },
+    // ── centre-top ──
+    { id: 'reception', label: 'Reception', sub: 'Foyer', kind: 'reception', x: 296, y: 34, w: 114, h: 318 },
+    { id: 'meet1', label: 'Meeting Room 1', sub: '23ʹ6 × 12ʹ9', kind: 'meeting', chairs: 12, x: 412, y: 34, w: 180, h: 158 },
+    { id: 'meet2', label: 'Meeting Room 2', sub: '15ʹ6 × 12ʹ3', kind: 'meeting', chairs: 8, x: 412, y: 194, w: 180, h: 158 },
+    { id: 'cmd', label: 'CMD Office', sub: '22ʹ6 × 21ʹ6', kind: 'office', x: 594, y: 34, w: 226, h: 206 },
+    { id: 'lounge', label: 'Lounge & Waiting', kind: 'reception', x: 594, y: 242, w: 226, h: 110 },
+    // ── right-top ──
+    { id: 'store', label: 'Store', sub: '7ʹ3 × 7ʹ6', kind: 'service', x: 822, y: 34, w: 156, h: 102 },
+    { id: 'cmdToilet', label: 'CMD Toilet', sub: '8ʹ5 × 7ʹ6', kind: 'service', x: 822, y: 138, w: 156, h: 104 },
+    { id: 'openBalcony', label: 'Open Balcony', sub: '8ʹ3 × 6ʹ6', kind: 'balcony', x: 822, y: 244, w: 156, h: 108 },
+    { id: 'breakout', label: 'Breakout Lounge', kind: 'collab', x: 980, y: 34, w: 184, h: 318 },
+    // ── centre-middle ──
+    { id: 'meet3', label: 'Meeting Room 3', sub: '9ʹ6 × 13ʹ7 · 6 pax', kind: 'meeting', chairs: 6, x: 738, y: 398, w: 82, h: 146 },
+    // ── east wing (open bay) ──
+    { id: 'eastWing', label: 'East Wing', kind: 'open', x: 824, y: 398, w: 340, h: 348 },
+    // ── centre-bottom ──
+    { id: 'female', label: 'Female Toilet', sub: '14ʹ6 × 12ʹ8', kind: 'service', x: 550, y: 592, w: 132, h: 120 },
+    { id: 'male', label: 'Male Toilet', sub: '10ʹ9 × 17ʹ9', kind: 'service', x: 686, y: 592, w: 132, h: 120 },
   ],
 }
 

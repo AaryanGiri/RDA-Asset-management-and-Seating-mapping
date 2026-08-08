@@ -53,6 +53,7 @@ export function FloorCanvas({ floorId, seats, employees, selectedId, focusId, di
   const [pan, setPan] = useState({ x: 0, y: 0 })
   const [smooth, setSmooth] = useState(false)
   const [hover, setHover] = useState<{ seat: Seat; x: number; y: number } | null>(null)
+  const [roomHover, setRoomHover] = useState<{ room: { id: string; label: string; sub?: string; kind: string }; x: number; y: number } | null>(null)
   const drag = useRef<{ sx: number; sy: number; px: number; py: number } | null>(null)
 
   const fit = Math.min(size.cw / geo.vbw, size.ch / geo.vbh) * 0.94
@@ -146,7 +147,7 @@ export function FloorCanvas({ floorId, seats, employees, selectedId, focusId, di
     setPan({ x: 0, y: 0 })
   }
 
-  const markerR = geo.fixedSeats ? 7 : 12
+  const markerR = geo.markerR ?? (geo.fixedSeats ? 7 : 12)
 
   return (
     <div
@@ -180,11 +181,20 @@ export function FloorCanvas({ floorId, seats, employees, selectedId, focusId, di
               alt="Floor plan"
             />
           ) : (
-            <FloorSVG floorId={floorId} seats={seats} />
+            <FloorSVG
+              floorId={floorId}
+              seats={seats}
+              hoveredRoomId={roomHover?.room.id ?? null}
+              onRoomHover={(room, e) =>
+                setRoomHover(room && e ? { room, x: e.clientX, y: e.clientY } : null)
+              }
+            />
           )}
         </div>
-        {/* marker overlay — same viewBox, same coordinate space → perfect alignment */}
-        <svg viewBox={`0 0 ${geo.vbw} ${geo.vbh}`} width={geo.vbw} height={geo.vbh} className="absolute inset-0 overflow-visible">
+        {/* marker overlay — same viewBox, same coordinate space → perfect alignment.
+            Root is pointer-events:none so empty areas fall through to the rooms below;
+            each marker <g> re-enables pointer events. */}
+        <svg viewBox={`0 0 ${geo.vbw} ${geo.vbh}`} width={geo.vbw} height={geo.vbh} className="absolute inset-0 overflow-visible" style={{ pointerEvents: 'none' }}>
           {[...seats]
             .sort((a, b) => rank(a, selectedId, hover?.seat.id) - rank(b, selectedId, hover?.seat.id))
             .map((seat) => {
@@ -204,6 +214,7 @@ export function FloorCanvas({ floorId, seats, employees, selectedId, focusId, di
                 transform={`translate(${cx}, ${cy})`}
                 style={{
                   cursor: 'pointer',
+                  pointerEvents: 'auto',
                   opacity: dim ? 0.18 : 1,
                   transition: 'opacity 0.3s',
                   filter: hovered ? 'drop-shadow(0 2px 4px rgba(0,0,0,0.4))' : undefined,
@@ -271,6 +282,26 @@ export function FloorCanvas({ floorId, seats, employees, selectedId, focusId, di
           })()}
         </div>
       )}
+
+      {/* room tooltip (name · size · type) */}
+      {roomHover && !hover && (
+        <div
+          className="pointer-events-none fixed z-50 w-max max-w-[240px] -translate-x-1/2 -translate-y-[calc(100%+14px)] rounded-xl border border-border bg-surface p-2.5 shadow-pop"
+          style={{ left: roomHover.x, top: roomHover.y }}
+        >
+          <div className="flex items-center gap-2">
+            <span className="text-sm font-semibold text-content">{roomHover.room.label}</span>
+            <span className="chip bg-brand-soft px-1.5 py-0.5 text-2xs text-brand">{ROOM_KIND_LABEL[roomHover.room.kind] ?? 'Space'}</span>
+          </div>
+          {roomHover.room.sub && <p className="mt-1 text-xs text-muted">{roomHover.room.sub}</p>}
+        </div>
+      )}
     </div>
   )
+}
+
+const ROOM_KIND_LABEL: Record<string, string> = {
+  meeting: 'Meeting room', office: 'Office', service: 'Facility', reception: 'Reception',
+  open: 'Open workspace', balcony: 'Balcony', collab: 'Collaboration', training: 'Training room',
+  courtyard: 'Courtyard', cabin: 'Cabin',
 }
