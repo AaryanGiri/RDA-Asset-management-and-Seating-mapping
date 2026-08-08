@@ -157,6 +157,12 @@ body {
   }
 }
 
+@media print {
+  body * { visibility: hidden !important; }
+  .print-area, .print-area * { visibility: visible !important; }
+  .print-area { position: fixed; inset: 0; margin: auto; height: fit-content; }
+}
+
 @layer utilities {
   .skeleton {
     @apply relative overflow-hidden rounded-lg bg-surface-2;
