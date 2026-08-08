@@ -33,15 +33,19 @@ src/
   hooks.ts      useSimulatedLoad, useMediaQuery, useCountUp
 ```
 
-## Status
+## Status — BUILD COMPLETE ✅
 
 | Piece | State |
 |---|---|
-| Scaffold + design system + shell + store + seed | ✅ done (commit 1) |
-| Module A — seating map | ⬜ next |
-| Module B — assets | ⬜ |
-| Executive dashboard + palette + notifications | 🟡 palette/notifications/toaster done; exec dashboard pending |
-| Self-review pass | ⬜ |
+| Scaffold + design system + shell + store + seed | ✅ commit 1 |
+| Module A — seating map, detail panel, directory, analytics | ✅ commit 2 |
+| Module B — register, QR passport, movements, verification, analytics, scan | ✅ commit 3 |
+| Executive dashboard + command palette + notifications | ✅ commit 4 |
+| Self-review pass (screenshots, mobile, build, polish) | ✅ commit 5 |
+
+All screens verified via headless-Chromium screenshots (dark + light, desktop + mobile).
+`npm run build` passes; `npx tsc --noEmit` clean. Dev screenshot harness lives at
+`shots.mjs` (git-ignored) — `node shots.mjs <dark|light> <desktop|mobile> [filter]`.
 
 ## What's done
 
@@ -53,8 +57,10 @@ src/
 
 ## Next step (exact)
 
-Build **Module A** — replace `/seating` placeholder with the interactive floor map:
-`src/features/seating/FloorMap.tsx` (zoom/pan stage with normalized markers), legend, hover tooltip, seat detail `Sheet`, allocate/release/move flows (use `useData` actions already present), and search-to-zoom (read `?seat=` param). Then `/directory` and `/seating-analytics`. Commit as "Module A".
+Build is feature-complete and demo-ready. If resuming for enhancements, candidate polish
+items (all optional): route-level code-splitting (`React.lazy`) to shrink the 922 kB bundle;
+a seat-configuration "place marker on map" admin mode; CSV import UI; more seeded activity.
+Run `npm run dev`, then `node shots.mjs dark desktop` to regenerate review screenshots.
 
 ## Conventions
 

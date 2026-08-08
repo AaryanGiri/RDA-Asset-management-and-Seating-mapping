@@ -81,7 +81,7 @@ export function StatCard({
     <div className="card card-hover group relative overflow-hidden p-4 sm:p-5">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <p className="truncate text-xs font-medium uppercase tracking-wide text-subtle">{label}</p>
+          <p className="text-xs font-medium uppercase leading-tight tracking-wide text-subtle">{label}</p>
           <p className="mt-2 text-2xl font-semibold tracking-tight text-content sm:text-[1.75rem]">{value}</p>
         </div>
         {icon && <div className={cn('grid h-10 w-10 shrink-0 place-items-center rounded-xl', accentMap[accent])}>{icon}</div>}
