@@ -139,7 +139,7 @@ export function FloorCanvas({ floorId, seats, employees, selectedId, focusId, di
     setPan({ x: 0, y: 0 })
   }
 
-  const markerR = 12
+  const markerR = geo.bg ? 8.5 : 12
 
   return (
     <div
@@ -163,7 +163,18 @@ export function FloorCanvas({ floorId, seats, employees, selectedId, focusId, di
         }}
       >
         <div className="absolute inset-0">
-          <FloorSVG floorId={floorId} seats={seats} />
+          {geo.bg ? (
+            <img
+              src={geo.bg.src}
+              width={geo.vbw}
+              height={geo.vbh}
+              draggable={false}
+              className="block h-full w-full select-none rounded-lg bg-white shadow-sm ring-1 ring-black/10"
+              alt="Floor plan"
+            />
+          ) : (
+            <FloorSVG floorId={floorId} seats={seats} />
+          )}
         </div>
         {/* marker overlay — same viewBox, same coordinate space → perfect alignment */}
         <svg viewBox={`0 0 ${geo.vbw} ${geo.vbh}`} width={geo.vbw} height={geo.vbh} className="absolute inset-0 overflow-visible">
@@ -201,7 +212,7 @@ export function FloorCanvas({ floorId, seats, employees, selectedId, focusId, di
                 />
                 {markerGlyph(seat, markerR)}
                 {emp && (
-                  <text textAnchor="middle" dominantBaseline="central" y={0.5} style={{ fill: '#fff', pointerEvents: 'none' }} fontSize={9.5} fontWeight={700} className="font-sans">
+                  <text textAnchor="middle" dominantBaseline="central" y={0.5} style={{ fill: '#fff', pointerEvents: 'none' }} fontSize={markerR * 0.82} fontWeight={700} className="font-sans">
                     {emp.fullName.split(' ').map((p) => p[0]).slice(0, 2).join('')}
                   </text>
                 )}

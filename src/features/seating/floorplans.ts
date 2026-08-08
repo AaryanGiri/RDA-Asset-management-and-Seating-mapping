@@ -1,4 +1,5 @@
 import type { SeatType } from '@/lib/types'
+import { FLOOR1_SEATS } from './floor1Seats'
 
 // Geometry is authored in viewBox units; seats are emitted as normalized 0–1
 // coordinates so the marker overlay stays pixel-perfect through zoom / pan / resize.
@@ -46,6 +47,14 @@ export interface CabinDef {
   h: number
 }
 
+export interface GeneratedSeat {
+  seatNumber: string
+  zone: string
+  seatType: SeatType
+  x: number // normalized
+  y: number
+}
+
 export interface FloorGeometry {
   id: string
   vbw: number
@@ -56,55 +65,29 @@ export interface FloorGeometry {
   banks: DeskBank[]
   cabins: CabinDef[]
   cores: Rect[]
+  /** When set, the floor is rendered from a real drawing image instead of vector rooms. */
+  bg?: { src: string }
+  /** Exact per-seat coordinates (used instead of generated banks when present). */
+  fixedSeats?: GeneratedSeat[]
 }
 
-// ── Floor 1 — HQ · faithful to the Rodic "Aga Khan Foundation" plan ──────────
-// Rooms, cabins C1–C8 and the 68 workstations (W1–W68) reproduce the source
-// drawing: Audio-Visual room, Central Courtyard, Meeting Rooms 1–4, CMD Office,
-// CMD toilet / Store / Open Balcony, Male/Female toilets, Pantry.
+// ── Floor 1 — the actual RODIC "Office at Aga Khan Foundation" drawing ────────
+// The real plan is used as the map background (public/floors/floor1.png, legend &
+// title block removed). Seat markers (W1–W68, C1–C8) sit on their exact desks —
+// coordinates extracted straight from the source PDF's text (see floor1Seats.ts).
+// vbw/vbh match the cropped drawing's aspect (932 × 714 pt → 1.305).
 const FLOOR_1: FloorGeometry = {
   id: 'f1',
-  vbw: 1440,
-  vbh: 900,
-  slabRect: { x: 50, y: 70, w: 1340, h: 790 },
-  slab: 'M90 70 L1350 70 Q1390 70 1390 110 L1390 820 Q1390 860 1350 860 L90 860 Q50 860 50 820 L50 110 Q50 70 90 70 Z',
-  cores: [{ x: 1120, y: 760, w: 96, h: 100 }],
-  rooms: [
-    { id: 'balcony1', label: '3ʹ Balcony', kind: 'balcony', x: 70, y: 76, w: 320, h: 24 },
-    { id: 'balcony2', label: '3ʹ Balcony', kind: 'balcony', x: 430, y: 76, w: 810, h: 24 },
-    { id: 'av', label: 'Audio Visual Room', sub: '35ʹ8 × 25ʹ · 24 seats', kind: 'training', x: 70, y: 112, w: 320, h: 300 },
-    { id: 'meet1', label: 'Meeting Room 1', sub: '15 seats', kind: 'meeting', x: 420, y: 112, w: 300, h: 150, chairs: 14 },
-    { id: 'meet2', label: 'Meeting Room 2', sub: '9 seats', kind: 'meeting', x: 740, y: 112, w: 230, h: 150, chairs: 8 },
-    { id: 'cmd', label: 'CMD Office', sub: '22ʹ6 × 21ʹ6', kind: 'office', x: 990, y: 112, w: 250, h: 250 },
-    { id: 'cmdToilet', label: 'CMD Toilet', kind: 'service', x: 1258, y: 112, w: 118, h: 76 },
-    { id: 'store', label: 'Store', kind: 'service', x: 1258, y: 200, w: 118, h: 76 },
-    { id: 'openBalcony', label: 'Open Balcony', kind: 'balcony', x: 1258, y: 288, w: 118, h: 74 },
-    { id: 'meet4', label: 'Meeting Room 4', sub: '4 pax', kind: 'meeting', x: 420, y: 286, w: 150, h: 124, chairs: 4 },
-    { id: 'lounge', label: 'Lounge & Waiting', kind: 'reception', x: 590, y: 286, w: 150, h: 124 },
-    { id: 'courtyard', label: 'Central Courtyard', kind: 'courtyard', x: 70, y: 430, w: 320, h: 250 },
-    { id: 'meet3', label: 'Meeting Room 3', sub: '6 pax', kind: 'meeting', x: 740, y: 430, w: 200, h: 128, chairs: 6 },
-    { id: 'femaleToilet', label: 'Female Toilet', kind: 'service', x: 1000, y: 600, w: 160, h: 130 },
-    { id: 'maleToilet', label: 'Male Toilet', kind: 'service', x: 1226, y: 600, w: 150, h: 150 },
-    { id: 'pantry', label: 'Pantry', kind: 'service', x: 1000, y: 740, w: 160, h: 100 },
-  ],
-  cabins: [
-    { seatNumber: 'C1', zone: 'Cabins', x: 420, y: 430, w: 96, h: 116 },
-    { seatNumber: 'C2', zone: 'Cabins', x: 526, y: 430, w: 96, h: 116 },
-    { seatNumber: 'C3', zone: 'Cabins', x: 632, y: 430, w: 96, h: 116 },
-    { seatNumber: 'C4', zone: 'Cabins', x: 420, y: 560, w: 96, h: 116 },
-    { seatNumber: 'C5', zone: 'Cabins', x: 526, y: 560, w: 96, h: 116 },
-    { seatNumber: 'C6', zone: 'Cabins', x: 632, y: 560, w: 96, h: 116 },
-    { seatNumber: 'C7', zone: 'Cabins', x: 748, y: 574, w: 150, h: 116 },
-    { seatNumber: 'C8', zone: 'Cabins', x: 908, y: 574, w: 90, h: 116 },
-  ],
-  banks: [
-    // West Bay — bottom-left open plan (W1–W30)
-    { zone: 'West Bay', type: 'workstation', prefix: 'W', startN: 1, x: 150, y: 706, cols: 10, rows: 3, dx: 50, dy: 48 },
-    // East Bay — right-side open plan (W31–W54)
-    { zone: 'East Bay', type: 'workstation', prefix: 'W', startN: 31, x: 1000, y: 402, cols: 8, rows: 3, dx: 48, dy: 60 },
-    // South Bay — bottom-centre (W55–W68)
-    { zone: 'South Bay', type: 'workstation', prefix: 'W', startN: 55, x: 660, y: 720, cols: 7, rows: 2, dx: 52, dy: 52 },
-  ],
+  vbw: 932,
+  vbh: 714,
+  slabRect: { x: 0, y: 0, w: 932, h: 714 },
+  slab: '',
+  cores: [],
+  rooms: [],
+  cabins: [],
+  banks: [],
+  bg: { src: '/floors/floor1.png' },
+  fixedSeats: FLOOR1_SEATS,
 }
 
 // ── Floor 2 — Level 5 · open-plan studio ────────────────────────────────────
@@ -141,16 +124,9 @@ export const FLOOR_GEOMETRY: Record<string, FloorGeometry> = {
   f2: FLOOR_2,
 }
 
-export interface GeneratedSeat {
-  seatNumber: string
-  zone: string
-  seatType: SeatType
-  x: number
-  y: number
-}
-
-/** Emit seats (normalized coords) for a floor from its bank + cabin geometry. */
+/** Emit seats (normalized coords) for a floor — exact fixedSeats if present, else banks. */
 export function generateFloorSeats(geo: FloorGeometry): GeneratedSeat[] {
+  if (geo.fixedSeats) return geo.fixedSeats
   const seats: GeneratedSeat[] = []
   for (const bank of geo.banks) {
     let n = bank.startN

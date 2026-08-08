@@ -17,7 +17,8 @@
 
 - Location hierarchy: Country → State → City → **Office → Building → Floor → Zone → Seat**.
 - 4 offices (HQ pilot + 3 scaffolded), 2 live floors, 10 departments, **~98 employees** (a few on notice, 6 unseated new joiners), **~108 seats** across both floors.
-- **Floor 1 (Level 3) is a faithful reproduction of the supplied RODIC / "Office at Aga Khan Foundation" plan**: Audio-Visual room, Central Courtyard, Meeting Rooms 1–4, CMD Office, CMD Toilet/Store/Open Balcony, Male/Female toilets, Pantry, Cabins C1–C8, and 68 workstations W1–W68 (West/East/South bays). Geometry in `floorplans.ts` (viewBox 1440×900); AV-room & CMD-office furniture drawn in `FloorSVG.tsx` (`training`/`office` room kinds). Floor 2 (Level 5) is a complementary studio.
+- **Floor 1 (Level 3) uses the REAL RODIC drawing as the map background** (`public/floors/floor1.png` — rendered from `RODIC LAYOUT.pdf` via pymupdf, legend/title block whited-out, cropped). The 68 workstations (W1–W68) and 8 cabins (C1–C8) are overlaid at **exact coordinates extracted from the PDF's own text** → `src/features/seating/floor1Seats.ts` (auto-generated). `FloorGeometry` gained `bg` + `fixedSeats`; `FloorCanvas` renders an `<img>` (on a white sheet) instead of `FloorSVG` when `bg` is set, with a smaller marker radius. This is the client's actual office — the earlier vector redraw was rejected as not exact. Floor 2 (Level 5) remains a vector studio.
+  - To regenerate the background + coords from an updated PDF, re-run the pymupdf render/extract (redaction boxes + CLIP in the one-off script; seats written to `floor1Seats.ts`).
 - Seat status: `vacant | occupied | notice | maintenance | blocked` (color + non-color cue).
 - **~48 assets**, 8 categories, condition `new|good|fair|damaged|beyond-repair`, status `in-use|in-transit|under-repair|in-storage|disposed`; each with photos, timeline, verification due. 6 movement requests across stages, 16 verification tasks, 7 notifications.
 
