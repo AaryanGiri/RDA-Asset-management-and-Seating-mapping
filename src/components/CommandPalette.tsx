@@ -88,6 +88,7 @@ export function CommandPalette() {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (!paletteOpen) return
+      if (e.key === 'Escape') { e.preventDefault(); close() }
       if (e.key === 'ArrowDown') { e.preventDefault(); setActive((a) => Math.min(results.length - 1, a + 1)) }
       if (e.key === 'ArrowUp') { e.preventDefault(); setActive((a) => Math.max(0, a - 1)) }
       if (e.key === 'Enter') { e.preventDefault(); results[active]?.run() }

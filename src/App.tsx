@@ -1,6 +1,6 @@
 import { Routes, Route, Navigate } from 'react-router-dom'
 import { Shell } from '@/components/Shell'
-import { Placeholder } from '@/pages/Placeholder'
+import { DashboardPage } from '@/pages/DashboardPage'
 import { SeatingPage } from '@/pages/SeatingPage'
 import { DirectoryPage } from '@/pages/DirectoryPage'
 import { SeatingAnalyticsPage } from '@/pages/SeatingAnalyticsPage'
@@ -15,7 +15,7 @@ export default function App() {
   return (
     <Routes>
       <Route element={<Shell />}>
-        <Route path="/" element={<Placeholder title="Executive Dashboard" />} />
+        <Route path="/" element={<DashboardPage />} />
         <Route path="/seating" element={<SeatingPage />} />
         <Route path="/directory" element={<DirectoryPage />} />
         <Route path="/seating-analytics" element={<SeatingAnalyticsPage />} />
