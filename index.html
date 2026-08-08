@@ -10,8 +10,13 @@
       // Prevent theme flash: apply stored theme before paint
       (function () {
         try {
-          var t = localStorage.getItem('locus.theme');
-          var d = t ? t === 'dark' : true;
+          var raw = localStorage.getItem('locus.theme');
+          var d = true; // default dark
+          if (raw) {
+            var p = JSON.parse(raw);
+            var theme = p && p.state ? p.state.theme : p ? p.theme : null;
+            if (theme === 'light') d = false;
+          }
           document.documentElement.classList.toggle('dark', d);
         } catch (e) {}
       })();

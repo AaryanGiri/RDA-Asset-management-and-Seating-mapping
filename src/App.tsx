@@ -1,15 +1,18 @@
 import { Routes, Route, Navigate } from 'react-router-dom'
 import { Shell } from '@/components/Shell'
 import { Placeholder } from '@/pages/Placeholder'
+import { SeatingPage } from '@/pages/SeatingPage'
+import { DirectoryPage } from '@/pages/DirectoryPage'
+import { SeatingAnalyticsPage } from '@/pages/SeatingAnalyticsPage'
 
 export default function App() {
   return (
     <Routes>
       <Route element={<Shell />}>
         <Route path="/" element={<Placeholder title="Executive Dashboard" />} />
-        <Route path="/seating" element={<Placeholder title="Floor Map" />} />
-        <Route path="/directory" element={<Placeholder title="Employee Locator" />} />
-        <Route path="/seating-analytics" element={<Placeholder title="Seating Analytics" />} />
+        <Route path="/seating" element={<SeatingPage />} />
+        <Route path="/directory" element={<DirectoryPage />} />
+        <Route path="/seating-analytics" element={<SeatingAnalyticsPage />} />
         <Route path="/assets" element={<Placeholder title="Asset Register" />} />
         <Route path="/assets/:id" element={<Placeholder title="Asset Passport" />} />
         <Route path="/movements" element={<Placeholder title="Asset Movements" />} />

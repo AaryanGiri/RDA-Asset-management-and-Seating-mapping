@@ -8,3 +8,7 @@ dist-ssr
 .idea
 *.log
 npm-debug.log*
+
+# dev-only screenshot harness
+/shots.mjs
+/shots/

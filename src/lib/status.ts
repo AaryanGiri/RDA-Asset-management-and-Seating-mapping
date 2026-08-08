@@ -12,11 +12,11 @@ export interface StatusMeta {
 }
 
 export const SEAT_STATUS: Record<SeatStatus, StatusMeta> = {
-  vacant: { label: 'Vacant', text: 'text-vacant', bg: 'bg-vacant-soft', ring: 'ring-vacant/30', dot: 'bg-vacant', fill: 'var(--c-vacant)', cue: 'ring' },
-  occupied: { label: 'Occupied', text: 'text-occupied', bg: 'bg-occupied-soft', ring: 'ring-occupied/30', dot: 'bg-occupied', fill: 'var(--c-occupied)', cue: 'solid' },
-  notice: { label: 'On Notice', text: 'text-notice', bg: 'bg-notice-soft', ring: 'ring-notice/30', dot: 'bg-notice', fill: 'var(--c-notice)', cue: 'clock' },
-  maintenance: { label: 'Maintenance', text: 'text-maint', bg: 'bg-maint-soft', ring: 'ring-maint/30', dot: 'bg-maint', fill: 'var(--c-maint)', cue: 'wrench' },
-  blocked: { label: 'Blocked', text: 'text-blocked', bg: 'bg-blocked-soft', ring: 'ring-blocked/30', dot: 'bg-blocked', fill: 'var(--c-blocked)', cue: 'cross' },
+  vacant: { label: 'Vacant', text: 'text-vacant', bg: 'bg-vacant-soft', ring: 'ring-vacant/30', dot: 'bg-vacant', fill: 'rgb(var(--c-vacant))', cue: 'ring' },
+  occupied: { label: 'Occupied', text: 'text-occupied', bg: 'bg-occupied-soft', ring: 'ring-occupied/30', dot: 'bg-occupied', fill: 'rgb(var(--c-occupied))', cue: 'solid' },
+  notice: { label: 'On Notice', text: 'text-notice', bg: 'bg-notice-soft', ring: 'ring-notice/30', dot: 'bg-notice', fill: 'rgb(var(--c-notice))', cue: 'clock' },
+  maintenance: { label: 'Maintenance', text: 'text-maint', bg: 'bg-maint-soft', ring: 'ring-maint/30', dot: 'bg-maint', fill: 'rgb(var(--c-maint))', cue: 'wrench' },
+  blocked: { label: 'Blocked', text: 'text-blocked', bg: 'bg-blocked-soft', ring: 'ring-blocked/30', dot: 'bg-blocked', fill: 'rgb(var(--c-blocked))', cue: 'cross' },
 }
 
 export const SEAT_ORDER: SeatStatus[] = ['occupied', 'vacant', 'notice', 'maintenance', 'blocked']
