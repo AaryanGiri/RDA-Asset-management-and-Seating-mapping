@@ -233,7 +233,7 @@ export const useData = create<DataState>()(
     }),
     {
       name: 'locus.db',
-      version: 4,
+      version: 5,
       partialize: (s) => ({
         offices: s.offices, floors: s.floors, departments: s.departments,
         employees: s.employees, seats: s.seats, seatEvents: s.seatEvents,

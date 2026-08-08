@@ -13,6 +13,45 @@ const roomFill: Record<string, string> = {
   collab: 'rgb(var(--c-brand-soft))',
   open: 'rgb(var(--c-surface))',
   balcony: 'rgb(var(--c-surface-2))',
+  training: 'rgb(var(--c-surface-2))',
+  office: 'rgb(var(--c-brand-soft))',
+}
+
+function TrainingRoom({ room }: { room: RoomShape }) {
+  // a projection screen on the left wall + rows of seats facing it
+  const chairs = []
+  const cols = 4
+  const rows = 5
+  const gx = room.x + 78
+  const gy = room.y + 56
+  const gw = room.w - 100
+  const gh = room.h - 84
+  for (let r = 0; r < rows; r++)
+    for (let c = 0; c < cols; c++)
+      chairs.push(
+        <circle key={`${r}-${c}`} cx={gx + (gw / (cols - 1)) * c} cy={gy + (gh / (rows - 1)) * r} r={6}
+          style={{ fill: 'rgb(var(--c-surface-3))', stroke: 'rgb(var(--c-border-strong))' }} strokeWidth={1} />,
+      )
+  return (
+    <g>
+      <rect x={room.x + 18} y={room.y + 46} width={12} height={room.h - 76} rx={3} style={{ fill: 'rgb(var(--c-brand))' }} opacity={0.7} />
+      {chairs}
+    </g>
+  )
+}
+
+function ExecOffice({ room }: { room: RoomShape }) {
+  const cx = room.x + room.w / 2
+  return (
+    <g>
+      {/* executive desk + chair */}
+      <rect x={cx - 58} y={room.y + 56} width={116} height={40} rx={6} style={{ fill: 'rgb(var(--c-surface-3))', stroke: 'rgb(var(--c-border-strong))' }} strokeWidth={1.2} />
+      <circle cx={cx} cy={room.y + 118} r={9} style={{ fill: 'rgb(var(--c-surface))', stroke: 'rgb(var(--c-border-strong))' }} strokeWidth={1.4} />
+      {/* lounge */}
+      <rect x={room.x + 22} y={room.y + room.h - 66} width={70} height={44} rx={8} style={{ fill: 'rgb(var(--c-surface))', stroke: 'rgb(var(--c-border-strong))' }} strokeWidth={1.2} />
+      <rect x={room.x + room.w - 92} y={room.y + room.h - 66} width={70} height={44} rx={8} style={{ fill: 'rgb(var(--c-surface))', stroke: 'rgb(var(--c-border-strong))' }} strokeWidth={1.2} />
+    </g>
+  )
 }
 
 function MeetingTable({ room }: { room: RoomShape }) {
@@ -84,6 +123,8 @@ export function FloorSVG({ floorId, seats }: { floorId: string; seats: Seat[] })
             </>
           )}
           {(r.kind === 'meeting' || r.kind === 'collab') && r.chairs && <MeetingTable room={r} />}
+          {r.kind === 'training' && <TrainingRoom room={r} />}
+          {r.kind === 'office' && <ExecOffice room={r} />}
           <text x={r.x + 12} y={r.y + 20} style={{ fill: 'rgb(var(--c-text-muted))' }} fontSize={13} fontWeight={600} className="font-sans">
             {r.label}
           </text>

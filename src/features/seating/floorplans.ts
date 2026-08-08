@@ -13,6 +13,8 @@ export type RoomKind =
   | 'open'
   | 'balcony'
   | 'collab'
+  | 'training'
+  | 'office'
 
 export interface RoomShape extends Rect {
   id: string
@@ -56,39 +58,52 @@ export interface FloorGeometry {
   cores: Rect[]
 }
 
-// ── Floor 1 — Level 3 · corporate HQ (echoes the Rodic layout) ──────────────
+// ── Floor 1 — HQ · faithful to the Rodic "Aga Khan Foundation" plan ──────────
+// Rooms, cabins C1–C8 and the 68 workstations (W1–W68) reproduce the source
+// drawing: Audio-Visual room, Central Courtyard, Meeting Rooms 1–4, CMD Office,
+// CMD toilet / Store / Open Balcony, Male/Female toilets, Pantry.
 const FLOOR_1: FloorGeometry = {
   id: 'f1',
-  vbw: 1200,
-  vbh: 820,
-  slabRect: { x: 40, y: 48, w: 1120, h: 726 },
-  slab: 'M40 88 Q40 48 80 48 L1120 48 Q1160 48 1160 88 L1160 734 Q1160 774 1120 774 L80 774 Q40 774 40 734 Z',
-  cores: [],
+  vbw: 1440,
+  vbh: 900,
+  slabRect: { x: 50, y: 70, w: 1340, h: 790 },
+  slab: 'M90 70 L1350 70 Q1390 70 1390 110 L1390 820 Q1390 860 1350 860 L90 860 Q50 860 50 820 L50 110 Q50 70 90 70 Z',
+  cores: [{ x: 1120, y: 760, w: 96, h: 100 }],
   rooms: [
-    { id: 'courtyard', label: 'Central Courtyard', kind: 'courtyard', x: 70, y: 84, w: 236, h: 248 },
-    { id: 'training', label: 'Training Room', sub: '24 pax', kind: 'meeting', x: 70, y: 348, w: 236, h: 150, chairs: 10 },
-    { id: 'reception', label: 'Reception & Lounge', kind: 'reception', x: 70, y: 514, w: 236, h: 128 },
-    { id: 'pantry', label: 'Pantry', kind: 'service', x: 70, y: 658, w: 236, h: 108 },
-    { id: 'boardroom', label: 'Boardroom', sub: '16 pax', kind: 'meeting', x: 330, y: 84, w: 300, h: 150, chairs: 12 },
-    { id: 'meetA', label: 'Meeting Room A', sub: '8 pax', kind: 'meeting', x: 646, y: 84, w: 206, h: 150, chairs: 8 },
-    { id: 'meetB', label: 'Meeting Room B', sub: '6 pax', kind: 'meeting', x: 868, y: 84, w: 252, h: 150, chairs: 6 },
-    { id: 'restrooms', label: 'Restrooms', kind: 'service', x: 900, y: 628, w: 218, h: 64 },
-    { id: 'store', label: 'Store & Records', kind: 'service', x: 900, y: 700, w: 218, h: 66 },
+    { id: 'balcony1', label: '3ʹ Balcony', kind: 'balcony', x: 70, y: 76, w: 320, h: 24 },
+    { id: 'balcony2', label: '3ʹ Balcony', kind: 'balcony', x: 430, y: 76, w: 810, h: 24 },
+    { id: 'av', label: 'Audio Visual Room', sub: '35ʹ8 × 25ʹ · 24 seats', kind: 'training', x: 70, y: 112, w: 320, h: 300 },
+    { id: 'meet1', label: 'Meeting Room 1', sub: '15 seats', kind: 'meeting', x: 420, y: 112, w: 300, h: 150, chairs: 14 },
+    { id: 'meet2', label: 'Meeting Room 2', sub: '9 seats', kind: 'meeting', x: 740, y: 112, w: 230, h: 150, chairs: 8 },
+    { id: 'cmd', label: 'CMD Office', sub: '22ʹ6 × 21ʹ6', kind: 'office', x: 990, y: 112, w: 250, h: 250 },
+    { id: 'cmdToilet', label: 'CMD Toilet', kind: 'service', x: 1258, y: 112, w: 118, h: 76 },
+    { id: 'store', label: 'Store', kind: 'service', x: 1258, y: 200, w: 118, h: 76 },
+    { id: 'openBalcony', label: 'Open Balcony', kind: 'balcony', x: 1258, y: 288, w: 118, h: 74 },
+    { id: 'meet4', label: 'Meeting Room 4', sub: '4 pax', kind: 'meeting', x: 420, y: 286, w: 150, h: 124, chairs: 4 },
+    { id: 'lounge', label: 'Lounge & Waiting', kind: 'reception', x: 590, y: 286, w: 150, h: 124 },
+    { id: 'courtyard', label: 'Central Courtyard', kind: 'courtyard', x: 70, y: 430, w: 320, h: 250 },
+    { id: 'meet3', label: 'Meeting Room 3', sub: '6 pax', kind: 'meeting', x: 740, y: 430, w: 200, h: 128, chairs: 6 },
+    { id: 'femaleToilet', label: 'Female Toilet', kind: 'service', x: 1000, y: 600, w: 160, h: 130 },
+    { id: 'maleToilet', label: 'Male Toilet', kind: 'service', x: 1226, y: 600, w: 150, h: 150 },
+    { id: 'pantry', label: 'Pantry', kind: 'service', x: 1000, y: 740, w: 160, h: 100 },
   ],
   cabins: [
-    { seatNumber: 'C1', zone: 'Cabins', x: 336, y: 408, w: 120, h: 92 },
-    { seatNumber: 'C2', zone: 'Cabins', x: 468, y: 408, w: 120, h: 92 },
-    { seatNumber: 'C3', zone: 'Cabins', x: 600, y: 408, w: 120, h: 92 },
-    { seatNumber: 'C4', zone: 'Cabins', x: 732, y: 408, w: 120, h: 92 },
-    { seatNumber: 'C5', zone: 'Cabins', x: 864, y: 408, w: 120, h: 92 },
-    { seatNumber: 'C6', zone: 'Cabins', x: 996, y: 408, w: 120, h: 92 },
-    { seatNumber: 'C7', zone: 'Cabins', x: 336, y: 520, w: 150, h: 104 },
-    { seatNumber: 'C8', zone: 'Cabins', x: 498, y: 520, w: 150, h: 104 },
+    { seatNumber: 'C1', zone: 'Cabins', x: 420, y: 430, w: 96, h: 116 },
+    { seatNumber: 'C2', zone: 'Cabins', x: 526, y: 430, w: 96, h: 116 },
+    { seatNumber: 'C3', zone: 'Cabins', x: 632, y: 430, w: 96, h: 116 },
+    { seatNumber: 'C4', zone: 'Cabins', x: 420, y: 560, w: 96, h: 116 },
+    { seatNumber: 'C5', zone: 'Cabins', x: 526, y: 560, w: 96, h: 116 },
+    { seatNumber: 'C6', zone: 'Cabins', x: 632, y: 560, w: 96, h: 116 },
+    { seatNumber: 'C7', zone: 'Cabins', x: 748, y: 574, w: 150, h: 116 },
+    { seatNumber: 'C8', zone: 'Cabins', x: 908, y: 574, w: 90, h: 116 },
   ],
   banks: [
-    { zone: 'North Bay', type: 'workstation', prefix: 'W', startN: 1, x: 360, y: 300, cols: 10, rows: 2, dx: 76, dy: 66 },
-    { zone: 'Central Bay', type: 'workstation', prefix: 'W', startN: 21, x: 690, y: 540, cols: 5, rows: 2, dx: 78, dy: 64 },
-    { zone: 'South Bay', type: 'workstation', prefix: 'W', startN: 31, x: 360, y: 668, cols: 7, rows: 2, dx: 70, dy: 58 },
+    // West Bay — bottom-left open plan (W1–W30)
+    { zone: 'West Bay', type: 'workstation', prefix: 'W', startN: 1, x: 150, y: 706, cols: 10, rows: 3, dx: 50, dy: 48 },
+    // East Bay — right-side open plan (W31–W54)
+    { zone: 'East Bay', type: 'workstation', prefix: 'W', startN: 31, x: 1000, y: 402, cols: 8, rows: 3, dx: 48, dy: 60 },
+    // South Bay — bottom-centre (W55–W68)
+    { zone: 'South Bay', type: 'workstation', prefix: 'W', startN: 55, x: 660, y: 720, cols: 7, rows: 2, dx: 52, dy: 52 },
   ],
 }
 

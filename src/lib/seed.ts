@@ -405,7 +405,7 @@ function makeNotifications(): Notification[] {
 }
 
 export function buildSeed(): SeedData {
-  const employees = makeEmployees(76)
+  const employees = makeEmployees(98)
   const { seats, events } = buildSeatsAndAssign(employees)
   const assets = makeAssets(employees)
   const movements = makeMovements(assets)
