@@ -146,7 +146,7 @@ export function FloorCanvas({ floorId, seats, employees, selectedId, focusId, di
     setPan({ x: 0, y: 0 })
   }
 
-  const markerR = geo.fixedSeats ? 8.5 : 12
+  const markerR = geo.fixedSeats ? 7 : 12
 
   return (
     <div
@@ -224,7 +224,7 @@ export function FloorCanvas({ floorId, seats, employees, selectedId, focusId, di
                     fill: isVacant ? 'rgb(var(--c-surface))' : m.fill,
                     stroke: isVacant ? m.fill : '#fff',
                   }}
-                  strokeWidth={isVacant ? 3 : 2}
+                  strokeWidth={isVacant ? 2.4 : 1.6}
                   className="transition-all duration-150"
                 />
                 {markerGlyph(seat, r)}

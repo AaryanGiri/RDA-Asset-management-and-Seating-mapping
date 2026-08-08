@@ -56,22 +56,24 @@ function ExecOffice({ room }: { room: RoomShape }) {
 }
 
 function MeetingTable({ room }: { room: RoomShape }) {
-  const pad = 26
-  const tx = room.x + pad
-  const ty = room.y + room.h / 2 - 12
-  const tw = room.w - pad * 2
-  const chairs = room.chairs ?? 6
-  const perSide = Math.ceil(chairs / 2)
+  // table sits in the lower part of the room (clear of the label) and always
+  // fits inside the box — chair count is capped to the available width.
+  const mx = 16
+  const tableX = room.x + mx
+  const tableW = room.w - mx * 2
+  const tableY = room.y + room.h * 0.56
+  const maxPerSide = Math.max(1, Math.floor(tableW / 13))
+  const perSide = Math.min(Math.ceil((room.chairs ?? 6) / 2), maxPerSide)
   const seats = []
   for (let i = 0; i < perSide; i++) {
-    const cx = tx + (tw / perSide) * (i + 0.5)
-    seats.push(<circle key={`t${i}`} cx={cx} cy={ty - 10} r={5.5} style={{ fill: 'rgb(var(--c-surface-3))', stroke: 'rgb(var(--c-border-strong))' }} strokeWidth={1} />)
-    seats.push(<circle key={`b${i}`} cx={cx} cy={ty + 34} r={5.5} style={{ fill: 'rgb(var(--c-surface-3))', stroke: 'rgb(var(--c-border-strong))' }} strokeWidth={1} />)
+    const cx = tableX + (tableW / perSide) * (i + 0.5)
+    seats.push(<circle key={`t${i}`} cx={cx} cy={tableY - 8} r={4} style={{ fill: 'rgb(var(--c-surface-3))', stroke: 'rgb(var(--c-border-strong))' }} strokeWidth={0.9} />)
+    seats.push(<circle key={`b${i}`} cx={cx} cy={tableY + 20} r={4} style={{ fill: 'rgb(var(--c-surface-3))', stroke: 'rgb(var(--c-border-strong))' }} strokeWidth={0.9} />)
   }
   return (
     <g>
       {seats}
-      <rect x={tx} y={ty} width={tw} height={24} rx={8} style={{ fill: 'rgb(var(--c-surface))', stroke: 'rgb(var(--c-border-strong))' }} strokeWidth={1.2} />
+      <rect x={tableX} y={tableY} width={tableW} height={12} rx={6} style={{ fill: 'rgb(var(--c-surface))', stroke: 'rgb(var(--c-border-strong))' }} strokeWidth={1.1} />
     </g>
   )
 }
@@ -80,8 +82,8 @@ function Desk({ cx, cy }: { cx: number; cy: number }) {
   // small desk surface (real ~4'6"×2'6") with a monitor bar — marker sits on top
   return (
     <g>
-      <rect x={cx - 15} y={cy - 10} width={30} height={20} rx={3} style={{ fill: 'rgb(var(--c-surface-2))', stroke: 'rgb(var(--c-border-strong))' }} strokeWidth={1} />
-      <rect x={cx - 7} y={cy - 8} width={14} height={3} rx={1.5} style={{ fill: 'rgb(var(--c-border-strong))' }} opacity={0.6} />
+      <rect x={cx - 13} y={cy - 9} width={26} height={18} rx={3} style={{ fill: 'rgb(var(--c-surface-2))', stroke: 'rgb(var(--c-border-strong))' }} strokeWidth={1} />
+      <rect x={cx - 6} y={cy - 7} width={12} height={2.5} rx={1.25} style={{ fill: 'rgb(var(--c-border-strong))' }} opacity={0.6} />
     </g>
   )
 }
