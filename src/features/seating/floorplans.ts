@@ -16,6 +16,7 @@ export type RoomKind =
   | 'collab'
   | 'training'
   | 'office'
+  | 'cabin'
 
 export interface RoomShape extends Rect {
   id: string
@@ -69,25 +70,57 @@ export interface FloorGeometry {
   bg?: { src: string }
   /** Exact per-seat coordinates (used instead of generated banks when present). */
   fixedSeats?: GeneratedSeat[]
+  /** Standalone zone captions drawn over open areas. */
+  zoneLabels?: { x: number; y: number; text: string }[]
 }
 
-// ── Floor 1 — the actual RODIC "Office at Aga Khan Foundation" drawing ────────
-// The real plan is used as the map background (public/floors/floor1.png, legend &
-// title block removed). Seat markers (W1–W68, C1–C8) sit on their exact desks —
-// coordinates extracted straight from the source PDF's text (see floor1Seats.ts).
-// vbw/vbh match the cropped drawing's aspect (932 × 714 pt → 1.305).
+// ── Floor 1 — RODIC "Office at Aga Khan Foundation" · vector re-creation ──────
+// Room layout matches the real plan (positions traced from the drawing); the 68
+// workstations (W1–W68) and 8 cabins (C1–C8) sit at EXACT coordinates extracted
+// from the source PDF's text layer (floor1Seats.ts). viewBox 932 × 714.
 const FLOOR_1: FloorGeometry = {
   id: 'f1',
   vbw: 932,
   vbh: 714,
   slabRect: { x: 0, y: 0, w: 932, h: 714 },
-  slab: '',
-  cores: [],
-  rooms: [],
-  cabins: [],
-  banks: [],
-  bg: { src: '/floors/floor1.png' },
+  slab: 'M22 0 H910 Q932 0 932 22 V692 Q932 714 910 714 H22 Q0 714 0 692 V22 Q0 0 22 0 Z',
+  cores: [{ x: 690, y: 618, w: 60, h: 92 }],
   fixedSeats: FLOOR1_SEATS,
+  banks: [],
+  cabins: [],
+  rooms: [
+    { id: 'av', label: 'Audio Visual Room', sub: '35ʹ8 × 25ʹ', kind: 'training', x: 4, y: 6, w: 250, h: 192 },
+    { id: 'courtyard', label: 'Central Courtyard', kind: 'courtyard', x: 4, y: 204, w: 182, h: 166 },
+    { id: 'foyer', label: 'Foyer', kind: 'reception', x: 190, y: 150, w: 78, h: 44 },
+    { id: 'ws12', label: 'Workstation', kind: 'open', x: 190, y: 226, w: 82, h: 48 },
+    { id: 'cabin1', label: 'Cabin 1', kind: 'cabin', x: 198, y: 300, w: 70, h: 90 },
+    { id: 'balcony1', label: '3ʹ Balcony', kind: 'balcony', x: 262, y: 62, w: 150, h: 24 },
+    { id: 'meet1', label: 'Meeting Room 1', sub: '15 seats', kind: 'meeting', chairs: 14, x: 278, y: 90, w: 146, h: 100 },
+    { id: 'meet2', label: 'Meeting Room 2', sub: '9 seats', kind: 'meeting', chairs: 8, x: 312, y: 200, w: 106, h: 88 },
+    { id: 'balcony2', label: '3ʹ Balcony', kind: 'balcony', x: 426, y: 150, w: 152, h: 24 },
+    { id: 'cmd', label: 'CMD Office', sub: '22ʹ6 × 21ʹ6', kind: 'office', x: 432, y: 192, w: 152, h: 98 },
+    { id: 'store', label: 'Store', kind: 'service', x: 590, y: 196, w: 64, h: 48 },
+    { id: 'cmdToilet', label: 'CMD Toilet', kind: 'service', x: 590, y: 250, w: 64, h: 46 },
+    { id: 'openBalcony', label: 'Open Balcony', kind: 'balcony', x: 660, y: 252, w: 60, h: 48 },
+    { id: 'cabin2', label: 'C2', kind: 'cabin', x: 334, y: 360, w: 46, h: 92 },
+    { id: 'cabin3', label: 'C3', kind: 'cabin', x: 372, y: 360, w: 46, h: 92 },
+    { id: 'cabin4', label: 'C4', kind: 'cabin', x: 429, y: 356, w: 46, h: 92 },
+    { id: 'cabin5', label: 'C5', kind: 'cabin', x: 508, y: 360, w: 46, h: 92 },
+    { id: 'cabin6', label: 'C6', kind: 'cabin', x: 543, y: 360, w: 46, h: 92 },
+    { id: 'meet3', label: 'Meeting Room 3', sub: '6 pax', kind: 'meeting', chairs: 6, x: 600, y: 352, w: 74, h: 96 },
+    { id: 'lounge', label: 'Lounge', kind: 'reception', x: 474, y: 284, w: 64, h: 34 },
+    { id: 'waiting', label: 'Waiting', kind: 'reception', x: 348, y: 306, w: 66, h: 30 },
+    { id: 'cabin7', label: 'Cabin 7', kind: 'cabin', x: 356, y: 500, w: 82, h: 100 },
+    { id: 'cabin8', label: 'Cabin 8', kind: 'cabin', x: 440, y: 505, w: 80, h: 100 },
+    { id: 'meet4', label: 'Meeting Room 4', sub: '4 pax', kind: 'meeting', chairs: 4, x: 205, y: 528, w: 72, h: 66 },
+    { id: 'female', label: 'Female Toilet', kind: 'service', x: 576, y: 490, w: 94, h: 88 },
+    { id: 'male', label: 'Male Toilet', kind: 'service', x: 600, y: 600, w: 82, h: 110 },
+  ],
+  zoneLabels: [
+    { x: 16, y: 500, text: 'West Wing' },
+    { x: 792, y: 452, text: 'East Wing' },
+    { x: 806, y: 872, text: 'East Wing' },
+  ],
 }
 
 // ── Floor 2 — Level 5 · open-plan studio ────────────────────────────────────

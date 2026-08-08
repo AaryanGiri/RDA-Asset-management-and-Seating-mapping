@@ -139,7 +139,7 @@ export function FloorCanvas({ floorId, seats, employees, selectedId, focusId, di
     setPan({ x: 0, y: 0 })
   }
 
-  const markerR = geo.bg ? 8.5 : 12
+  const markerR = geo.fixedSeats ? 8.5 : 12
 
   return (
     <div

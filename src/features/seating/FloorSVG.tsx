@@ -15,6 +15,7 @@ const roomFill: Record<string, string> = {
   balcony: 'rgb(var(--c-surface-2))',
   training: 'rgb(var(--c-surface-2))',
   office: 'rgb(var(--c-brand-soft))',
+  cabin: 'rgb(var(--c-surface-2))',
 }
 
 function TrainingRoom({ room }: { room: RoomShape }) {
@@ -125,10 +126,13 @@ export function FloorSVG({ floorId, seats }: { floorId: string; seats: Seat[] })
           {(r.kind === 'meeting' || r.kind === 'collab') && r.chairs && <MeetingTable room={r} />}
           {r.kind === 'training' && <TrainingRoom room={r} />}
           {r.kind === 'office' && <ExecOffice room={r} />}
-          <text x={r.x + 12} y={r.y + 20} style={{ fill: 'rgb(var(--c-text-muted))' }} fontSize={13} fontWeight={600} className="font-sans">
+          {r.kind === 'cabin' && (
+            <rect x={r.x + r.w / 2 - 15} y={r.y + r.h - 24} width={30} height={11} rx={2} style={{ fill: 'rgb(var(--c-surface-3))', stroke: 'rgb(var(--c-border))' }} strokeWidth={0.8} />
+          )}
+          <text x={r.x + (r.kind === 'cabin' ? 6 : 12)} y={r.y + (r.kind === 'cabin' ? 14 : 20)} style={{ fill: 'rgb(var(--c-text-muted))' }} fontSize={r.kind === 'cabin' ? 10 : r.w < 80 ? 11 : 13} fontWeight={600} className="font-sans">
             {r.label}
           </text>
-          {r.sub && (
+          {r.sub && r.kind !== 'cabin' && (
             <text x={r.x + 12} y={r.y + 36} style={{ fill: 'rgb(var(--c-text-subtle))' }} fontSize={11} className="font-sans">
               {r.sub}
             </text>
@@ -162,19 +166,10 @@ export function FloorSVG({ floorId, seats }: { floorId: string; seats: Seat[] })
         </g>
       ))}
 
-      {/* zone labels for open bays */}
-      {geo.banks.map((b) => (
-        <text
-          key={b.zone}
-          x={b.x - 6}
-          y={b.y - 30}
-          style={{ fill: 'rgb(var(--c-text-subtle))' }}
-          fontSize={11}
-          fontWeight={600}
-          letterSpacing={0.5}
-          className="font-sans uppercase"
-        >
-          {b.zone}
+      {/* standalone zone captions */}
+      {(geo.zoneLabels ?? []).map((z, i) => (
+        <text key={i} x={z.x} y={z.y} style={{ fill: 'rgb(var(--c-text-subtle))' }} fontSize={12} fontWeight={700} letterSpacing={0.6} className="font-sans uppercase">
+          {z.text}
         </text>
       ))}
 

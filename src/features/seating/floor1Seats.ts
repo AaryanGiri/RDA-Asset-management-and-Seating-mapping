@@ -1,6 +1,7 @@
 import type { GeneratedSeat } from './floorplans'
 
-// AUTO-GENERATED from RODIC LAYOUT.pdf — exact seat coordinates (normalized to floor1.png).
+// AUTO-GENERATED from RODIC LAYOUT.pdf -- exact seat coordinates (normalized 0-1),
+// extracted from the drawing's text layer. Consumed by floorplans.ts (FLOOR_1.fixedSeats).
 export const FLOOR1_SEATS: GeneratedSeat[] = [
   { seatNumber: 'W1', zone: 'West Wing', seatType: 'workstation', x: 0.2224, y: 0.3497 },
   { seatNumber: 'W2', zone: 'West Wing', seatType: 'workstation', x: 0.2556, y: 0.3497 },
