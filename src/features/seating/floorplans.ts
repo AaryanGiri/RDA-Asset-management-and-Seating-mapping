@@ -92,7 +92,7 @@ const FLOOR_1: FloorGeometry = {
     { id: 'av', label: 'Audio Visual Room', sub: '35ʹ8 × 25ʹ', kind: 'training', x: 4, y: 6, w: 250, h: 192 },
     { id: 'courtyard', label: 'Central Courtyard', kind: 'courtyard', x: 4, y: 204, w: 182, h: 166 },
     { id: 'foyer', label: 'Foyer', kind: 'reception', x: 190, y: 150, w: 78, h: 44 },
-    { id: 'ws12', label: 'Workstation', kind: 'open', x: 190, y: 226, w: 82, h: 48 },
+    { id: 'ws12', label: 'Workstation', kind: 'open', x: 186, y: 220, w: 98, h: 62 },
     { id: 'cabin1', label: 'Cabin 1', kind: 'cabin', x: 198, y: 300, w: 70, h: 90 },
     { id: 'balcony1', label: '3ʹ Balcony', kind: 'balcony', x: 262, y: 62, w: 150, h: 24 },
     { id: 'meet1', label: 'Meeting Room 1', sub: '15 seats', kind: 'meeting', chairs: 14, x: 278, y: 90, w: 146, h: 100 },
@@ -107,7 +107,7 @@ const FLOOR_1: FloorGeometry = {
     { id: 'cabin4', label: 'C4', kind: 'cabin', x: 429, y: 356, w: 46, h: 92 },
     { id: 'cabin5', label: 'C5', kind: 'cabin', x: 508, y: 360, w: 46, h: 92 },
     { id: 'cabin6', label: 'C6', kind: 'cabin', x: 543, y: 360, w: 46, h: 92 },
-    { id: 'meet3', label: 'Meeting Room 3', sub: '6 pax', kind: 'meeting', chairs: 6, x: 600, y: 352, w: 74, h: 96 },
+    { id: 'meet3', label: 'Meeting Room 3', sub: '6 pax', kind: 'meeting', chairs: 6, x: 598, y: 352, w: 62, h: 96 },
     { id: 'lounge', label: 'Lounge', kind: 'reception', x: 474, y: 284, w: 64, h: 34 },
     { id: 'waiting', label: 'Waiting', kind: 'reception', x: 348, y: 306, w: 66, h: 30 },
     { id: 'cabin7', label: 'Cabin 7', kind: 'cabin', x: 356, y: 500, w: 82, h: 100 },
@@ -117,9 +117,8 @@ const FLOOR_1: FloorGeometry = {
     { id: 'male', label: 'Male Toilet', kind: 'service', x: 600, y: 600, w: 82, h: 110 },
   ],
   zoneLabels: [
-    { x: 16, y: 500, text: 'West Wing' },
-    { x: 792, y: 452, text: 'East Wing' },
-    { x: 806, y: 872, text: 'East Wing' },
+    { x: 20, y: 500, text: 'West Wing' },
+    { x: 762, y: 274, text: 'East Wing' },
   ],
 }
 

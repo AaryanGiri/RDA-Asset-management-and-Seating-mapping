@@ -17,6 +17,13 @@ interface Props {
   onSelect: (seat: Seat) => void
 }
 
+// draw hovered marker on top of everything, then selected
+function rank(seat: Seat, selectedId?: string, hoverId?: string) {
+  if (seat.id === hoverId) return 2
+  if (seat.id === selectedId) return 1
+  return 0
+}
+
 function markerGlyph(seat: Seat, r: number) {
   const white = { stroke: '#fff', strokeWidth: 2, fill: 'none', strokeLinecap: 'round' as const }
   switch (seat.status) {
@@ -178,20 +185,29 @@ export function FloorCanvas({ floorId, seats, employees, selectedId, focusId, di
         </div>
         {/* marker overlay — same viewBox, same coordinate space → perfect alignment */}
         <svg viewBox={`0 0 ${geo.vbw} ${geo.vbh}`} width={geo.vbw} height={geo.vbh} className="absolute inset-0 overflow-visible">
-          {seats.map((seat) => {
+          {[...seats]
+            .sort((a, b) => rank(a, selectedId, hover?.seat.id) - rank(b, selectedId, hover?.seat.id))
+            .map((seat) => {
             const m = SEAT_STATUS[seat.status]
             const cx = seat.x * geo.vbw
             const cy = seat.y * geo.vbh
             const selected = seat.id === selectedId
+            const hovered = hover?.seat.id === seat.id
             const dim = dimUnmatched ? !dimUnmatched.has(seat.id) : false
             const isVacant = seat.status === 'vacant'
             const emp = employees.find((e) => e.id === seat.employeeId)
+            const r = hovered ? markerR * 1.32 : markerR
             return (
               <g
                 key={seat.id}
                 data-seat
                 transform={`translate(${cx}, ${cy})`}
-                style={{ cursor: 'pointer', opacity: dim ? 0.18 : 1, transition: 'opacity 0.3s' }}
+                style={{
+                  cursor: 'pointer',
+                  opacity: dim ? 0.18 : 1,
+                  transition: 'opacity 0.3s',
+                  filter: hovered ? 'drop-shadow(0 2px 4px rgba(0,0,0,0.4))' : undefined,
+                }}
                 onClick={(e) => { e.stopPropagation(); onSelect(seat) }}
                 onPointerEnter={(e) => setHover({ seat, x: e.clientX, y: e.clientY })}
                 onPointerMove={(e) => setHover((h) => (h && h.seat.id === seat.id ? { ...h, x: e.clientX, y: e.clientY } : h))}
@@ -201,18 +217,19 @@ export function FloorCanvas({ floorId, seats, employees, selectedId, focusId, di
                   <circle r={markerR + 7} style={{ fill: 'none', stroke: m.fill, transformBox: 'fill-box', transformOrigin: 'center' }} strokeWidth={2.5} className="animate-pulse-ring" />
                 )}
                 {selected && <circle r={markerR + 5} style={{ fill: 'none', stroke: m.fill }} strokeWidth={2} opacity={0.9} />}
+                {hovered && !selected && <circle r={markerR + 3.5} style={{ fill: 'none', stroke: m.fill }} strokeWidth={1.5} opacity={0.5} />}
                 <circle
-                  r={markerR}
+                  r={r}
                   style={{
                     fill: isVacant ? 'rgb(var(--c-surface))' : m.fill,
                     stroke: isVacant ? m.fill : '#fff',
                   }}
                   strokeWidth={isVacant ? 3 : 2}
-                  className="transition-[r] duration-150"
+                  className="transition-all duration-150"
                 />
-                {markerGlyph(seat, markerR)}
+                {markerGlyph(seat, r)}
                 {emp && (
-                  <text textAnchor="middle" dominantBaseline="central" y={0.5} style={{ fill: '#fff', pointerEvents: 'none' }} fontSize={markerR * 0.82} fontWeight={700} className="font-sans">
+                  <text textAnchor="middle" dominantBaseline="central" y={0.5} style={{ fill: '#fff', pointerEvents: 'none' }} fontSize={r * 0.82} fontWeight={700} className="font-sans transition-all duration-150">
                     {emp.fullName.split(' ').map((p) => p[0]).slice(0, 2).join('')}
                   </text>
                 )}

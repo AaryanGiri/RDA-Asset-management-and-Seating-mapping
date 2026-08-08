@@ -77,11 +77,11 @@ function MeetingTable({ room }: { room: RoomShape }) {
 }
 
 function Desk({ cx, cy }: { cx: number; cy: number }) {
-  // desk surface with a monitor bar — marker sits centered on top
+  // small desk surface (real ~4'6"×2'6") with a monitor bar — marker sits on top
   return (
     <g>
-      <rect x={cx - 24} y={cy - 15} width={48} height={30} rx={4} style={{ fill: 'rgb(var(--c-surface-3))', stroke: 'rgb(var(--c-border))' }} strokeWidth={1} />
-      <rect x={cx - 11} y={cy - 12} width={22} height={5} rx={2} style={{ fill: 'rgb(var(--c-border-strong))' }} opacity={0.5} />
+      <rect x={cx - 15} y={cy - 10} width={30} height={20} rx={3} style={{ fill: 'rgb(var(--c-surface-2))', stroke: 'rgb(var(--c-border-strong))' }} strokeWidth={1} />
+      <rect x={cx - 7} y={cy - 8} width={14} height={3} rx={1.5} style={{ fill: 'rgb(var(--c-border-strong))' }} opacity={0.6} />
     </g>
   )
 }
@@ -127,13 +127,20 @@ export function FloorSVG({ floorId, seats }: { floorId: string; seats: Seat[] })
           {r.kind === 'training' && <TrainingRoom room={r} />}
           {r.kind === 'office' && <ExecOffice room={r} />}
           {r.kind === 'cabin' && (
-            <rect x={r.x + r.w / 2 - 15} y={r.y + r.h - 24} width={30} height={11} rx={2} style={{ fill: 'rgb(var(--c-surface-3))', stroke: 'rgb(var(--c-border))' }} strokeWidth={0.8} />
+            <rect x={r.x + r.w / 2 - 15} y={r.y + r.h / 2 + 3} width={30} height={12} rx={2} style={{ fill: 'rgb(var(--c-surface-3))', stroke: 'rgb(var(--c-border))' }} strokeWidth={0.8} />
           )}
-          <text x={r.x + (r.kind === 'cabin' ? 6 : 12)} y={r.y + (r.kind === 'cabin' ? 14 : 20)} style={{ fill: 'rgb(var(--c-text-muted))' }} fontSize={r.kind === 'cabin' ? 10 : r.w < 80 ? 11 : 13} fontWeight={600} className="font-sans">
+          <text
+            x={r.x + (r.kind === 'cabin' ? 6 : 10)}
+            y={r.y + (r.kind === 'cabin' ? 14 : 19)}
+            style={{ fill: 'rgb(var(--c-text-muted))' }}
+            fontSize={r.kind === 'cabin' ? 9.5 : Math.max(8.5, Math.min(13, (r.w - 12) / (r.label.length * 0.56)))}
+            fontWeight={600}
+            className="font-sans"
+          >
             {r.label}
           </text>
-          {r.sub && r.kind !== 'cabin' && (
-            <text x={r.x + 12} y={r.y + 36} style={{ fill: 'rgb(var(--c-text-subtle))' }} fontSize={11} className="font-sans">
+          {r.sub && r.kind !== 'cabin' && r.h >= 46 && (
+            <text x={r.x + 10} y={r.y + 34} style={{ fill: 'rgb(var(--c-text-subtle))' }} fontSize={Math.max(8, Math.min(11, (r.w - 12) / (r.sub.length * 0.55)))} className="font-sans">
               {r.sub}
             </text>
           )}
