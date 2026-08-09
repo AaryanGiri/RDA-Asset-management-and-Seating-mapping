@@ -91,11 +91,13 @@ function Courtyard({ room }: { room: RoomShape }) {
   )
 }
 
-function Desk({ cx, cy }: { cx: number; cy: number }) {
+function Desk({ cx, cy, r = 8 }: { cx: number; cy: number; r?: number }) {
+  const w = r * 2.9
+  const h = r * 1.9
   return (
     <g style={{ pointerEvents: 'none' }}>
-      <rect x={cx - 13} y={cy - 9} width={26} height={18} rx={3} style={{ fill: 'rgb(var(--c-surface))', stroke: WALL_IN }} strokeWidth={1} />
-      <rect x={cx - 6} y={cy - 7} width={12} height={2.5} rx={1.25} style={{ fill: WALL_IN }} opacity={0.7} />
+      <rect x={cx - w / 2} y={cy - h / 2} width={w} height={h} rx={2.5} style={{ fill: 'rgb(var(--c-surface))', stroke: WALL_IN }} strokeWidth={0.9} />
+      <rect x={cx - r * 0.55} y={cy - h / 2 + 1.5} width={r * 1.1} height={2.2} rx={1} style={{ fill: WALL_IN }} opacity={0.7} />
     </g>
   )
 }
@@ -204,7 +206,7 @@ export function FloorSVG({
 
       {/* desks under workstation markers */}
       {workstations.map((s) => (
-        <Desk key={s.id} cx={s.x * geo.vbw} cy={s.y * geo.vbh} />
+        <Desk key={s.id} cx={s.x * geo.vbw} cy={s.y * geo.vbh} r={geo.markerR ?? 8} />
       ))}
 
       {/* entry marker */}

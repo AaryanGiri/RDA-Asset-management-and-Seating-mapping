@@ -1,4 +1,5 @@
 import type { SeatType } from '@/lib/types'
+import { FLOOR1_SEATS } from './floor1Seats'
 
 // Geometry is authored in viewBox units; seats are emitted as normalized 0–1
 // coordinates so the marker overlay stays pixel-perfect through zoom / pan / resize.
@@ -86,59 +87,54 @@ export interface FloorGeometry {
 // rooms as walled cells grouped into blocks, and open workstation bays. viewBox 1200×780.
 const FLOOR_1: FloorGeometry = {
   id: 'f1',
-  vbw: 1200,
-  vbh: 780,
-  slabRect: { x: 32, y: 30, w: 1136, h: 720 },
+  vbw: 932,
+  vbh: 714,
+  slabRect: { x: 0, y: 0, w: 932, h: 714 },
   slab: '',
-  plate: { x: 32, y: 30, w: 1136, h: 720 },
+  plate: { x: 2, y: 2, w: 928, h: 710 },
   cores: [],
-  markerR: 8,
-  banks: [
-    // West Wing open bay — W1–W28 (clean 7×4 grid)
-    { zone: 'West Wing', type: 'workstation', prefix: 'W', startN: 1, x: 62, y: 448, cols: 7, rows: 4, dx: 28, dy: 34 },
-    // East Wing open bay — W29–W68 (clean 8×5 grid)
-    { zone: 'East Wing', type: 'workstation', prefix: 'W', startN: 29, x: 858, y: 442, cols: 8, rows: 5, dx: 39, dy: 56 },
-  ],
-  cabins: [
-    { seatNumber: 'C1', zone: 'Cabins', x: 300, y: 404, w: 66, h: 140 },
-    { seatNumber: 'C2', zone: 'Cabins', x: 370, y: 404, w: 66, h: 140 },
-    { seatNumber: 'C3', zone: 'Cabins', x: 440, y: 404, w: 66, h: 140 },
-    { seatNumber: 'C4', zone: 'Cabins', x: 510, y: 404, w: 66, h: 140 },
-    { seatNumber: 'C5', zone: 'Cabins', x: 580, y: 404, w: 66, h: 140 },
-    { seatNumber: 'C6', zone: 'Cabins', x: 650, y: 404, w: 66, h: 140 },
-    { seatNumber: 'C7', zone: 'Cabins', x: 300, y: 592, w: 118, h: 120 },
-    { seatNumber: 'C8', zone: 'Cabins', x: 424, y: 592, w: 118, h: 120 },
-  ],
-  corridors: [
-    { x: 250, y: 34, w: 46, h: 712, dir: 'v' }, // left spine
-    { x: 36, y: 352, w: 1128, h: 46, dir: 'h' }, // main spine
-    { x: 296, y: 550, w: 524, h: 40, dir: 'h' }, // lower spine (centre)
-  ],
-  markers: [{ x: 273, y: 748, label: 'Entry', kind: 'entry' }],
+  markerR: 6,
+  fixedSeats: FLOOR1_SEATS, // exact W1–W68 & C1–C8 positions from the PDF
+  banks: [],
+  cabins: [],
+  // rooms positioned to match the drawing (label centres extracted from the PDF),
+  // sized so adjacent cells share edges without overlapping
   rooms: [
-    // ── left column ──
-    { id: 'av', label: 'Audio Visual Room', sub: '35ʹ8 × 25ʹ', kind: 'training', x: 36, y: 34, w: 214, h: 182 },
-    { id: 'courtyard', label: 'Central Courtyard', kind: 'courtyard', x: 36, y: 216, w: 214, h: 136 },
-    { id: 'westWing', label: 'West Wing', kind: 'open', x: 36, y: 398, w: 214, h: 200 },
-    { id: 'meet4', label: 'Meeting Room 4', sub: '9ʹ × 8ʹ10', kind: 'meeting', chairs: 4, x: 36, y: 602, w: 214, h: 144 },
-    // ── centre-top ──
-    { id: 'reception', label: 'Reception', sub: 'Foyer', kind: 'reception', x: 296, y: 34, w: 114, h: 318 },
-    { id: 'meet1', label: 'Meeting Room 1', sub: '23ʹ6 × 12ʹ9', kind: 'meeting', chairs: 12, x: 412, y: 34, w: 180, h: 158 },
-    { id: 'meet2', label: 'Meeting Room 2', sub: '15ʹ6 × 12ʹ3', kind: 'meeting', chairs: 8, x: 412, y: 194, w: 180, h: 158 },
-    { id: 'cmd', label: 'CMD Office', sub: '22ʹ6 × 21ʹ6', kind: 'office', x: 594, y: 34, w: 226, h: 206 },
-    { id: 'lounge', label: 'Lounge & Waiting', kind: 'reception', x: 594, y: 242, w: 226, h: 110 },
-    // ── right-top ──
-    { id: 'store', label: 'Store', sub: '7ʹ3 × 7ʹ6', kind: 'service', x: 822, y: 34, w: 156, h: 102 },
-    { id: 'cmdToilet', label: 'CMD Toilet', sub: '8ʹ5 × 7ʹ6', kind: 'service', x: 822, y: 138, w: 156, h: 104 },
-    { id: 'openBalcony', label: 'Open Balcony', sub: '8ʹ3 × 6ʹ6', kind: 'balcony', x: 822, y: 244, w: 156, h: 108 },
-    { id: 'breakout', label: 'Breakout Lounge', kind: 'collab', x: 980, y: 34, w: 184, h: 318 },
-    // ── centre-middle ──
-    { id: 'meet3', label: 'Meeting Room 3', sub: '9ʹ6 × 13ʹ7 · 6 pax', kind: 'meeting', chairs: 6, x: 738, y: 398, w: 82, h: 146 },
-    // ── east wing (open bay) ──
-    { id: 'eastWing', label: 'East Wing', kind: 'open', x: 824, y: 398, w: 340, h: 348 },
-    // ── centre-bottom ──
-    { id: 'female', label: 'Female Toilet', sub: '14ʹ6 × 12ʹ8', kind: 'service', x: 550, y: 592, w: 132, h: 120 },
-    { id: 'male', label: 'Male Toilet', sub: '10ʹ9 × 17ʹ9', kind: 'service', x: 686, y: 592, w: 132, h: 120 },
+    { id: 'av', label: 'Audio Visual Room', sub: '35ʹ8 × 25ʹ', kind: 'training', x: 6, y: 10, w: 244, h: 192 },
+    { id: 'courtyard', label: 'Central Courtyard', kind: 'courtyard', x: 6, y: 208, w: 180, h: 164 },
+    { id: 'foyer', label: 'Foyer', kind: 'reception', x: 192, y: 206, w: 96, h: 90 },
+    { id: 'cabin1', label: 'Cabin 1', sub: '12ʹ × 9ʹ6', kind: 'cabin', x: 196, y: 300, w: 80, h: 92 },
+    { id: 'meet1', label: 'Meeting Room 1', sub: '23ʹ6 × 12ʹ9 · 15 seats', kind: 'meeting', chairs: 12, x: 290, y: 96, w: 152, h: 94 },
+    { id: 'meet2', label: 'Meeting Room 2', sub: '15ʹ6 × 12ʹ3 · 9 seats', kind: 'meeting', chairs: 8, x: 290, y: 194, w: 152, h: 92 },
+    { id: 'cmd', label: 'CMD Office', sub: '22ʹ6 × 21ʹ6', kind: 'office', x: 448, y: 150, w: 134, h: 162 },
+    { id: 'lounge', label: 'Lounge & Waiting', kind: 'reception', x: 448, y: 316, w: 134, h: 34 },
+    { id: 'waiting', label: 'Waiting', kind: 'reception', x: 356, y: 318, w: 64, h: 30 },
+    { id: 'store', label: 'Store', sub: '7ʹ3 × 7ʹ6', kind: 'service', x: 588, y: 150, w: 66, h: 72 },
+    { id: 'cmdToilet', label: 'CMD Toilet', sub: '8ʹ5 × 7ʹ6', kind: 'service', x: 588, y: 226, w: 66, h: 86 },
+    { id: 'openBalcony', label: 'Open Balcony', sub: '8ʹ3 × 6ʹ6', kind: 'balcony', x: 750, y: 306, w: 76, h: 58 },
+    // cabin cells (marker supplied by fixedSeats)
+    { id: 'cabin2', label: 'C2', kind: 'cabin', x: 335, y: 362, w: 42, h: 96 },
+    { id: 'cabin3', label: 'C3', kind: 'cabin', x: 373, y: 362, w: 42, h: 96 },
+    { id: 'cabin4', label: 'C4', kind: 'cabin', x: 430, y: 360, w: 42, h: 96 },
+    { id: 'cabin5', label: 'C5', kind: 'cabin', x: 509, y: 362, w: 42, h: 96 },
+    { id: 'cabin6', label: 'C6', kind: 'cabin', x: 545, y: 362, w: 42, h: 96 },
+    { id: 'meet3', label: 'Meeting Room 3', sub: '9ʹ6 × 13ʹ7 · 6 pax', kind: 'meeting', chairs: 6, x: 616, y: 398, w: 62, h: 94 },
+    { id: 'cabin7', label: 'Cabin 7', sub: '9ʹ10 × 15ʹ6', kind: 'cabin', x: 358, y: 502, w: 74, h: 98 },
+    { id: 'cabin8', label: 'Cabin 8', sub: '16ʹ3 × 12ʹ9', kind: 'cabin', x: 440, y: 506, w: 72, h: 98 },
+    { id: 'meet4', label: 'Meeting Room 4', sub: '9ʹ × 8ʹ10', kind: 'meeting', chairs: 4, x: 202, y: 512, w: 66, h: 66 },
+    { id: 'female', label: 'Female Toilet', sub: '14ʹ6 × 12ʹ8', kind: 'service', x: 576, y: 484, w: 66, h: 62 },
+    { id: 'male', label: 'Male Toilet', sub: '10ʹ9 × 17ʹ9', kind: 'service', x: 576, y: 556, w: 66, h: 96 },
+  ],
+  // main circulation axes (6ʹ-0 wide corridors) — walk-path centrelines
+  corridors: [
+    { x: 285, y: 96, w: 6, h: 500, dir: 'v' },
+    { x: 190, y: 350, w: 636, h: 6, dir: 'h' },
+    { x: 296, y: 470, w: 524, h: 6, dir: 'h' },
+  ],
+  markers: [{ x: 300, y: 600, label: 'Entry', kind: 'entry' }],
+  zoneLabels: [
+    { x: 34, y: 502, text: 'West Wing' },
+    { x: 760, y: 292, text: 'East Wing' },
   ],
 }
 
