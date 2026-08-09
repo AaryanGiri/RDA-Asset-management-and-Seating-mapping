@@ -44,6 +44,8 @@ src/
 | Module B — register, QR passport, movements, verification, analytics, scan | ✅ commit 3 |
 | Executive dashboard + command palette + notifications | ✅ commit 4 |
 | Self-review pass (screenshots, mobile, build, polish) | ✅ commit 5 |
+| Front-end layout editor — move/add/remove/edit seats + reset | ✅ commit 6 |
+| Architectural floor-plan editor — rooms/walls/doors/furniture + measurements + from-scratch office/floor builder + dashboard wiring | ✅ commit 7 |
 
 All screens verified via headless-Chromium screenshots (dark + light, desktop + mobile).
 `npm run build` passes; `npx tsc --noEmit` clean. Dev screenshot harness lives at
@@ -56,12 +58,21 @@ All screens verified via headless-Chromium screenshots (dark + light, desktop + 
 - Command palette (⌘/Ctrl-K) — searches people/seats/assets + navigation, keyboard nav. Wired to route `?seat=`/`/assets/:id`.
 - Notifications sheet + toast system.
 - Full domain types, seeded in-memory world, persisted store with latency-simulated mutations for seating + assets + movements + verifications.
+- **Architectural floor-plan editor** (Floor Map → "Edit layout") — a CAD-lite editor where the *entire* floor is editable front-end data, no backend. All geometry now lives in the store as `floorPlans[floorId]` (a `FloorPlan`: rooms, walls, doors, furniture, corridors, markers, `pxPerFoot` scale) seeded from the shipped geometry via `geometryToPlan`; `FloorSVG` renders from the plan (typed partition walls, doors with swing arcs, furniture glyphs), and `FloorCanvas` hosts the interaction overlay.
+  - **Tools** (`features/seating/LayoutEditor.tsx` `ToolPalette`): Select/move, Room, Wall, Door, Furniture, Seat, Measure + grid-snap toggle. Contextual option chips per tool (room kind, partition type, door type, furniture kind — all from the RODIC legend/schedule).
+  - **Rooms** — draw (drag), move, resize (8 handles), rename/sub-label/kind, live **ft-in dimensions + sq-ft area**, delete. **Walls** — typed gypsum/glass/brick segments at real thickness, draw + move + endpoint-drag + retype. **Doors** — wooden/glass/sliding/double/toilet with swing arcs, place + rotate + flip + resize. **Furniture** — workstation/table/sofa/reception/storage/screen/plant/WC/stairs presets at true sizes, place/drag-size/move/resize/rotate. **Seats** — move/add/rename/type/zone/delete. **Measure** — drag to read a ft-in distance. Grid + snap (0.5 ft) with px-per-ft scale control.
+  - **Auto panels** — `PropertiesPanel` (type-specific fields for the selection, dims in feet), `AreaSchedule` (built-up area + per-space counts/areas, mirrors the drawing's schedule), `PlanLegend` (partition types).
+  - **From-scratch builder** (`FloorBuilder.tsx`): create a new office (name/city/code) and/or a blank floor at a chosen size (ft) + scale, then draw it up. New floors/offices flow into the store (`createOffice`/`createFloor`) and appear everywhere (floor selector, dashboard).
+  - **Dashboard wiring** — the Workplace card subtitle is live: `N floors · M offices · X sq ft built-up`, computed from `floorPlans` (`roomAreaSqFt`). Occupancy/by-floor already live off seats.
+  - Store actions: `addRoom/updateRoom/removeRoom`, `addWall/updateWall/removeWall`, `addDoor/updateDoor/removeDoor`, `addFurniture/updateFurniture/removeFurniture`, `setFloorScale`, `updateFloorPlanMeta`, `resetFloorPlan`, `createOffice`, `createFloor`, `removeFloor` (+ the seat actions from commit 6). Persist **v11** with a `migrate` that preserves existing user data while filling `floorPlans` from seed. Files: `features/seating/layout.ts` (model + presets + measurement helpers), `FloorSVG.tsx`, `FloorCanvas.tsx`, `LayoutEditor.tsx`, `FloorBuilder.tsx`, `pages/SeatingPage.tsx`, `pages/DashboardPage.tsx`, `lib/store.ts`.
 
 ## Next step (exact)
 
-Build is feature-complete and demo-ready. If resuming for enhancements, candidate polish
-items (all optional): route-level code-splitting (`React.lazy`) to shrink the 922 kB bundle;
-a seat-configuration "place marker on map" admin mode; CSV import UI; more seeded activity.
+Build is feature-complete and demo-ready. Optional polish: route-level code-splitting
+(`React.lazy`) to shrink the ~950 kB bundle; wall/room **snapping to each other** (endpoint &
+edge snapping) for faster precise drawing; door auto-orient to the nearest wall on drop;
+undo/redo for the editor; per-floor **Area schedule export** (CSV/print) matching the drawing's
+title block; more seeded activity.
 Run `npm run dev`, then `node shots.mjs dark desktop` to regenerate review screenshots.
 
 ## Conventions

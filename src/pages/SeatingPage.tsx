@@ -1,9 +1,13 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { Search, X, Layers, Users2, DoorOpen, CalendarClock } from 'lucide-react'
+import { Search, X, Layers, Users2, DoorOpen, CalendarClock, Pencil, Check, RotateCcw, Ruler, Building2, Plus } from 'lucide-react'
 import { FloorCanvas } from '@/features/seating/FloorCanvas'
 import { Legend } from '@/features/seating/Legend'
 import { SeatDetail } from '@/features/seating/SeatDetail'
+import { ToolPalette, PropertiesPanel, AreaSchedule, PlanLegend } from '@/features/seating/LayoutEditor'
+import { FloorBuilder } from '@/features/seating/FloorBuilder'
+import { geometryToPlan, type EditorTool, type Selection, type WallType, type DoorType, type FurnitureKind } from '@/features/seating/layout'
+import { FLOOR_GEOMETRY, type RoomKind } from '@/features/seating/floorplans'
 import { Segmented, Avatar } from '@/components/ui'
 import { useData, deptName } from '@/lib/store'
 import { SEAT_STATUS } from '@/lib/status'
@@ -16,6 +20,10 @@ export function SeatingPage() {
   const seats = useData((s) => s.seats)
   const employees = useData((s) => s.employees)
   const floors = useData((s) => s.floors)
+  const floorPlans = useData((s) => s.floorPlans)
+  const resetFloorPlan = useData((s) => s.resetFloorPlan)
+  const setFloorScale = useData((s) => s.setFloorScale)
+  const removeFloor = useData((s) => s.removeFloor)
   const [params, setParams] = useSearchParams()
 
   const [floorId, setFloorId] = useState(floors[0].id)
@@ -24,9 +32,25 @@ export function SeatingPage() {
   const [query, setQuery] = useState('')
   const [showResults, setShowResults] = useState(false)
   const [active, setActive] = useState<Set<SeatStatus>>(new Set(ALL))
+  const [editing, setEditing] = useState(false)
+  const [tool, setTool] = useState<EditorTool>('select')
+  const [gridSnap, setGridSnap] = useState(true)
+  const [selection, setSelection] = useState<Selection | null>(null)
+  const [roomKind, setRoomKind] = useState<RoomKind>('office')
+  const [wallType, setWallType] = useState<WallType>('gypsum')
+  const [doorType, setDoorType] = useState<DoorType>('glass')
+  const [furnitureKind, setFurnitureKind] = useState<FurnitureKind>('desk')
+  const [builderOpen, setBuilderOpen] = useState(false)
   const searchWrap = useRef<HTMLDivElement>(null)
 
-  // handle ?seat= deep link (from command palette / directory)
+  const plan = floorPlans[floorId] ?? geometryToPlan(FLOOR_GEOMETRY[floorId])
+  const exitEditing = () => { setEditing(false); setTool('select'); setSelection(null) }
+
+  // if the current floor is removed, fall back to the first available
+  useEffect(() => {
+    if (!floors.find((f) => f.id === floorId) && floors[0]) setFloorId(floors[0].id)
+  }, [floors, floorId])
+
   useEffect(() => {
     const sid = params.get('seat')
     if (sid) {
@@ -113,21 +137,33 @@ export function SeatingPage() {
           </div>
           <Segmented
             value={floorId}
-            onChange={(v) => { setFloorId(v); setSelectedId(undefined) }}
+            onChange={(v) => { setFloorId(v); setSelectedId(undefined); setSelection(null) }}
             options={floors.map((f) => ({ value: f.id, label: <span className="flex items-center gap-1.5"><Layers className="h-3.5 w-3.5" />{f.name.split('·')[0].trim()}</span> }))}
           />
+          <button
+            onClick={() => (editing ? exitEditing() : setEditing(true))}
+            className={cn(
+              'inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-xs font-medium transition-colors',
+              editing ? 'border-brand bg-brand text-white shadow-sm' : 'border-border bg-surface text-muted hover:bg-surface-2 hover:text-content',
+            )}
+          >
+            {editing ? <Check className="h-3.5 w-3.5" /> : <Pencil className="h-3.5 w-3.5" />}
+            {editing ? 'Done editing' : 'Edit layout'}
+          </button>
         </div>
 
         <div className="flex flex-1 flex-wrap items-center justify-end gap-3">
-          <div className="hidden items-center gap-3 md:flex">
-            <MiniStat icon={Users2} label="Occupied" value={occupancy} tone="occupied" />
-            <MiniStat icon={DoorOpen} label="Vacant" value={counts.vacant} tone="vacant" />
-            <MiniStat icon={CalendarClock} label="On notice" value={counts.notice} tone="notice" />
-            <div className="flex flex-col">
-              <span className="text-lg font-semibold leading-none text-content">{occRate}%</span>
-              <span className="text-2xs text-subtle">occupancy</span>
+          {!editing && (
+            <div className="hidden items-center gap-3 md:flex">
+              <MiniStat icon={Users2} label="Occupied" value={occupancy} tone="occupied" />
+              <MiniStat icon={DoorOpen} label="Vacant" value={counts.vacant} tone="vacant" />
+              <MiniStat icon={CalendarClock} label="On notice" value={counts.notice} tone="notice" />
+              <div className="flex flex-col">
+                <span className="text-lg font-semibold leading-none text-content">{occRate}%</span>
+                <span className="text-2xs text-subtle">occupancy</span>
+              </div>
             </div>
-          </div>
+          )}
           <div ref={searchWrap} className="relative w-full sm:w-72">
             <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-subtle" />
             <input
@@ -156,34 +192,80 @@ export function SeatingPage() {
         </div>
       </div>
 
-      {/* map + left rail */}
+      {/* editor sub-bar */}
+      {editing && (
+        <div className="flex flex-wrap items-center gap-3 border-b border-brand/30 bg-brand-soft/40 px-4 py-2 sm:px-6">
+          <span className="inline-flex items-center gap-1.5 text-2xs font-semibold uppercase tracking-wide text-brand">
+            <Ruler className="h-3.5 w-3.5" /> Layout editor
+          </span>
+          <label className="flex items-center gap-1.5 text-2xs text-muted">
+            Scale
+            <input
+              type="number" min={2} max={40} step={0.5}
+              defaultValue={plan.pxPerFoot.toFixed(1)} key={floorId + plan.pxPerFoot}
+              onBlur={(e) => { const v = parseFloat(e.target.value); if (!isNaN(v)) setFloorScale(floorId, v) }}
+              className="input h-7 w-16 text-xs"
+            />
+            px/ft
+          </label>
+          <span className="text-2xs text-subtle">{Math.round(plan.vbw / plan.pxPerFoot)}′ × {Math.round(plan.vbh / plan.pxPerFoot)}′</span>
+          <button onClick={() => setBuilderOpen(true)} className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-surface px-2.5 py-1.5 text-xs font-medium text-muted transition-colors hover:bg-surface-2 hover:text-content">
+            <Plus className="h-3.5 w-3.5" /> New floor
+          </button>
+          <div className="ml-auto flex items-center gap-2">
+            <button
+              onClick={() => { if (confirm('Reset this floor plan to the original design? Your room / wall / furniture edits will be discarded.')) { resetFloorPlan(floorId); setSelection(null) } }}
+              className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-surface px-2.5 py-1.5 text-xs font-medium text-muted transition-colors hover:bg-surface-2 hover:text-content"
+            >
+              <RotateCcw className="h-3.5 w-3.5" /> Reset plan
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* map + rails */}
       <div className="flex min-h-0 flex-1 gap-3 p-3 sm:gap-4 sm:p-4">
-        <aside className="hidden w-56 shrink-0 flex-col gap-3 lg:flex">
-          <Legend counts={counts} active={active} onToggle={toggle} />
-          <div className="card p-3.5">
-            <p className="section-title mb-2">Floor summary</p>
-            <div className="mb-2 flex items-baseline gap-1.5">
-              <span className="text-2xl font-semibold text-content">{occRate}%</span>
-              <span className="text-xs text-muted">occupied</span>
-            </div>
-            <div className="h-2 w-full overflow-hidden rounded-full bg-surface-3">
-              <div className="h-full rounded-full bg-brand" style={{ width: `${occRate}%` }} />
-            </div>
-            <dl className="mt-3 space-y-1.5 text-xs">
-              <Row label="Total seats" value={floorSeats.length} />
-              <Row label="Occupied" value={counts.occupied} tone="text-occupied" />
-              <Row label="On notice" value={counts.notice} tone="text-notice" />
-              <Row label="Vacant" value={counts.vacant} tone="text-vacant" />
-              <Row label="Unavailable" value={counts.maintenance + counts.blocked} tone="text-muted" />
-            </dl>
-          </div>
-          <div className="card flex items-start gap-2.5 p-3">
-            <div className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-notice-soft text-notice"><CalendarClock className="h-4 w-4" /></div>
-            <div>
-              <p className="text-xs font-semibold text-content">{counts.notice} freeing up soon</p>
-              <p className="mt-0.5 text-2xs text-muted">Seats on notice period this floor.</p>
-            </div>
-          </div>
+        <aside className={cn('hidden shrink-0 flex-col gap-3 lg:flex', editing ? 'w-64 overflow-y-auto pr-1' : 'w-56')}>
+          {editing ? (
+            <>
+              <ToolPalette
+                tool={tool} setTool={(t) => { setTool(t); if (t !== 'select') setSelection(null) }}
+                gridSnap={gridSnap} setGridSnap={setGridSnap}
+                opts={{ roomKind, setRoomKind, wallType, setWallType, doorType, setDoorType, furnitureKind, setFurnitureKind }}
+              />
+              <PropertiesPanel floorId={floorId} plan={plan} selection={selection} seats={floorSeats} onClear={() => setSelection(null)} />
+              <AreaSchedule plan={plan} seats={floorSeats} />
+              <PlanLegend />
+            </>
+          ) : (
+            <>
+              <Legend counts={counts} active={active} onToggle={toggle} />
+              <div className="card p-3.5">
+                <p className="section-title mb-2">Floor summary</p>
+                <div className="mb-2 flex items-baseline gap-1.5">
+                  <span className="text-2xl font-semibold text-content">{occRate}%</span>
+                  <span className="text-xs text-muted">occupied</span>
+                </div>
+                <div className="h-2 w-full overflow-hidden rounded-full bg-surface-3">
+                  <div className="h-full rounded-full bg-brand" style={{ width: `${occRate}%` }} />
+                </div>
+                <dl className="mt-3 space-y-1.5 text-xs">
+                  <Row label="Total seats" value={floorSeats.length} />
+                  <Row label="Occupied" value={counts.occupied} tone="text-occupied" />
+                  <Row label="On notice" value={counts.notice} tone="text-notice" />
+                  <Row label="Vacant" value={counts.vacant} tone="text-vacant" />
+                  <Row label="Unavailable" value={counts.maintenance + counts.blocked} tone="text-muted" />
+                </dl>
+              </div>
+              <div className="card flex items-start gap-2.5 p-3">
+                <div className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-notice-soft text-notice"><CalendarClock className="h-4 w-4" /></div>
+                <div>
+                  <p className="text-xs font-semibold text-content">{counts.notice} freeing up soon</p>
+                  <p className="mt-0.5 text-2xs text-muted">Seats on notice period this floor.</p>
+                </div>
+              </div>
+            </>
+          )}
         </aside>
         <div className="relative min-h-0 flex-1">
           <FloorCanvas
@@ -192,13 +274,28 @@ export function SeatingPage() {
             employees={employees}
             selectedId={selectedId}
             focusId={focusId}
-            dimUnmatched={highlightSet}
+            dimUnmatched={editing ? null : highlightSet}
             onSelect={(s) => setSelectedId(s.id)}
+            editing={editing}
+            tool={tool}
+            wallType={wallType}
+            doorType={doorType}
+            furnitureKind={furnitureKind}
+            roomKind={roomKind}
+            gridSnap={gridSnap}
+            selection={selection}
+            onSelectElement={setSelection}
           />
         </div>
       </div>
 
-      <SeatDetail seatId={selectedId} onClose={() => setSelectedId(undefined)} onNavigateSeat={focusSeat} />
+      {!editing && <SeatDetail seatId={selectedId} onClose={() => setSelectedId(undefined)} onNavigateSeat={focusSeat} />}
+      {builderOpen && (
+        <FloorBuilder
+          onClose={() => setBuilderOpen(false)}
+          onCreated={(id) => { setBuilderOpen(false); setFloorId(id); setSelection(null) }}
+        />
+      )}
     </div>
   )
 }

@@ -11,6 +11,7 @@ import { Page } from '@/components/Page'
 import { StatCard, Avatar, ConditionBadge } from '@/components/ui'
 import { ChartCard, ChartTooltip } from '@/components/charts'
 import { useData, deptName, officeName } from '@/lib/store'
+import { roomAreaSqFt } from '@/features/seating/layout'
 import { useChart } from '@/lib/chart'
 import { CONDITION_META } from '@/lib/status'
 import { useSimulatedLoad } from '@/hooks'
@@ -18,7 +19,7 @@ import { cn, formatCurrency, relativeTime, daysBetween, formatDate } from '@/lib
 import type { AssetCondition } from '@/lib/types'
 
 export function DashboardPage() {
-  const { seats, employees, assets, movements, verifications, seatEvents, floors } = useData()
+  const { seats, employees, assets, movements, verifications, seatEvents, floors, floorPlans, offices } = useData()
   const c = useChart()
   const nav = useNavigate()
   const loading = useSimulatedLoad(420)
@@ -33,6 +34,13 @@ export function DashboardPage() {
   const openMoves = movements.filter((m) => m.stage !== 'received' && m.stage !== 'rejected').length
   const flagged = assets.filter((a) => a.flagged).length
   const compliance = Math.round((verifications.filter((v) => v.status === 'completed').length / verifications.length) * 100)
+
+  const builtUpArea = Math.round(
+    Object.values(floorPlans).reduce(
+      (sum, p) => sum + p.rooms.reduce((a, r) => a + roomAreaSqFt(r, p.pxPerFoot), 0),
+      0,
+    ),
+  )
 
   const byFloor = floors.map((f) => {
     const fs = seats.filter((s) => s.floorId === f.id)
@@ -99,7 +107,7 @@ export function DashboardPage() {
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
         {/* Workplace overview */}
         <ChartCard
-          title="Workplace" subtitle="Occupancy by floor" className="lg:col-span-2"
+          title="Workplace" subtitle={`${floors.length} floors · ${offices.length} offices · ${builtUpArea.toLocaleString()} sq ft built-up`} className="lg:col-span-2"
           action={<Link to="/seating-analytics" className="flex items-center gap-1 text-xs font-medium text-brand hover:underline">Analytics <ArrowUpRight className="h-3.5 w-3.5" /></Link>}
         >
           <div className="mb-4 grid grid-cols-3 gap-3">

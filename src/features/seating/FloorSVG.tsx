@@ -1,9 +1,12 @@
-import { FLOOR_GEOMETRY, type FloorGeometry, type RoomShape } from './floorplans'
+import type { RoomShape } from './floorplans'
+import type { FloorPlan, Wall, Door, FurnitureItem } from './layout'
+import { WALL_META } from './layout'
 import type { Seat } from '@/lib/types'
 
-// Renders the floor as a 2D architectural plan: floor plate + exterior wall,
-// walkable corridors, rooms as walled cells, furniture, and desks. Pure vector so
-// it stays crisp at any zoom. Seat markers are drawn by FloorCanvas on top.
+// Pure vector rendering of an editable floor plan: floor plate + exterior wall,
+// corridors, rooms (with procedural furniture per kind), typed partition walls,
+// doors with swing arcs, and user-placed furniture. All interaction (select /
+// drag / resize) is layered on top by FloorCanvas — this component only draws.
 
 const WALL = 'rgb(var(--c-text-muted))'
 const WALL_IN = 'rgb(var(--c-border-strong))'
@@ -91,6 +94,12 @@ function Courtyard({ room }: { room: RoomShape }) {
   )
 }
 
+function CabinDesk({ room }: { room: RoomShape }) {
+  return (
+    <rect x={room.x + room.w / 2 - 15} y={room.y + room.h - 22} width={30} height={11} rx={2} style={{ fill: 'rgb(var(--c-surface-2))', stroke: WALL_IN, pointerEvents: 'none' }} strokeWidth={0.9} />
+  )
+}
+
 function Desk({ cx, cy, r = 8 }: { cx: number; cy: number; r?: number }) {
   const w = r * 2.9
   const h = r * 1.9
@@ -102,28 +111,133 @@ function Desk({ cx, cy, r = 8 }: { cx: number; cy: number; r?: number }) {
   )
 }
 
-/** door opening: a gap drawn as a light rect over the wall + a quarter-arc swing */
-function Door({ x, y, w, h }: { x: number; y: number; w: number; h: number }) {
-  return <rect x={x} y={y} width={w} height={h} style={{ fill: FLOOR }} />
+// ── typed partition wall — a colored capsule at real thickness ────────────────
+function WallSeg({ wall, ppf }: { wall: Wall; ppf: number }) {
+  const meta = WALL_META[wall.type]
+  const thickness = Math.max(3, (meta.thicknessIn / 12) * ppf)
+  return (
+    <g style={{ pointerEvents: 'none' }}>
+      <line x1={wall.x1} y1={wall.y1} x2={wall.x2} y2={wall.y2} stroke={meta.color} strokeWidth={thickness} strokeLinecap="round" opacity={0.9} />
+      {wall.type === 'glass' && (
+        <line x1={wall.x1} y1={wall.y1} x2={wall.x2} y2={wall.y2} stroke="#fff" strokeWidth={Math.max(1, thickness * 0.35)} strokeLinecap="round" strokeDasharray="1 6" opacity={0.8} />
+      )}
+    </g>
+  )
+}
+
+// ── door leaf + swing arc ─────────────────────────────────────────────────────
+const DOOR_COLOR: Record<string, string> = {
+  wooden: '#B45309', double: '#B45309', toilet: '#B45309', glass: '#0EA5E9', sliding: '#0EA5E9',
+}
+function DoorGlyph({ door }: { door: FurnitureItem | Door }) {
+  const d = door as Door
+  const color = DOOR_COLOR[d.type] ?? '#B45309'
+  const a = (d.angle * Math.PI) / 180
+  const dir = d.flip ? -1 : 1
+  // leaf endpoint
+  const lx = d.x + Math.cos(a) * d.w
+  const ly = d.y + Math.sin(a) * d.w
+  // arc endpoint (swept 90° toward the wall normal)
+  const na = a + (dir * Math.PI) / 2
+  const ex = d.x + Math.cos(na) * d.w
+  const ey = d.y + Math.sin(na) * d.w
+  const sweep = dir > 0 ? 1 : 0
+  if (d.type === 'sliding') {
+    return (
+      <g style={{ pointerEvents: 'none' }}>
+        <line x1={d.x} y1={d.y} x2={lx} y2={ly} stroke={color} strokeWidth={3} strokeLinecap="round" />
+        <line x1={d.x + (lx - d.x) * 0.5} y1={d.y + (ly - d.y) * 0.5} x2={ex} y2={ey} stroke={color} strokeWidth={3} strokeLinecap="round" opacity={0.6} />
+      </g>
+    )
+  }
+  return (
+    <g style={{ pointerEvents: 'none' }}>
+      <path d={`M ${lx} ${ly} A ${d.w} ${d.w} 0 0 ${sweep} ${ex} ${ey}`} fill="none" stroke={color} strokeWidth={1.2} strokeDasharray="3 3" opacity={0.7} />
+      <line x1={d.x} y1={d.y} x2={lx} y2={ly} stroke={color} strokeWidth={2.4} strokeLinecap="round" />
+      {d.type === 'double' && (
+        <line x1={d.x} y1={d.y} x2={d.x - Math.cos(a) * d.w} y2={d.y - Math.sin(a) * d.w} stroke={color} strokeWidth={2.4} strokeLinecap="round" />
+      )}
+    </g>
+  )
+}
+
+// ── user-placed furniture ─────────────────────────────────────────────────────
+export function FurnitureGlyph({ item }: { item: FurnitureItem }) {
+  const { x, y, w, h, kind } = item
+  const cx = x + w / 2
+  const cy = y + h / 2
+  const surf2 = 'rgb(var(--c-surface-2))'
+  const surf = 'rgb(var(--c-surface))'
+  const inner = (() => {
+    switch (kind) {
+      case 'desk':
+        return (
+          <>
+            <rect x={x} y={y} width={w} height={h} rx={2.5} style={{ fill: surf, stroke: WALL_IN }} strokeWidth={1} />
+            <circle cx={cx} cy={y + h + 4} r={Math.min(w, h) * 0.24} style={{ fill: surf2, stroke: WALL_IN }} strokeWidth={0.9} />
+          </>
+        )
+      case 'meeting-table':
+        return <rect x={x} y={y} width={w} height={h} rx={Math.min(w, h) * 0.28} style={{ fill: surf2, stroke: WALL_IN }} strokeWidth={1.2} />
+      case 'sofa':
+        return (
+          <g>
+            <rect x={x} y={y} width={w} height={h} rx={6} style={{ fill: surf2, stroke: WALL_IN }} strokeWidth={1.1} />
+            <rect x={x + 3} y={y + 3} width={w - 6} height={h * 0.5} rx={4} style={{ fill: surf, stroke: WALL_IN }} strokeWidth={0.8} />
+          </g>
+        )
+      case 'plant':
+        return <circle cx={cx} cy={cy} r={Math.min(w, h) / 2} style={{ fill: 'rgb(var(--c-vacant))', stroke: WALL_IN }} strokeWidth={1} opacity={0.5} />
+      case 'toilet':
+        return (
+          <g>
+            <rect x={x} y={y} width={w} height={h} rx={w * 0.4} style={{ fill: surf, stroke: WALL_IN }} strokeWidth={1} />
+            <ellipse cx={cx} cy={y + h * 0.6} rx={w * 0.3} ry={h * 0.28} style={{ fill: surf2, stroke: WALL_IN }} strokeWidth={0.8} />
+          </g>
+        )
+      case 'stairs': {
+        const steps = Math.max(3, Math.round(w / 8))
+        return (
+          <g>
+            <rect x={x} y={y} width={w} height={h} style={{ fill: surf, stroke: WALL_IN }} strokeWidth={1} />
+            {Array.from({ length: steps }).map((_, i) => (
+              <line key={i} x1={x + (w / steps) * (i + 1)} y1={y} x2={x + (w / steps) * (i + 1)} y2={y + h} stroke={WALL_IN} strokeWidth={0.8} />
+            ))}
+          </g>
+        )
+      }
+      case 'screen':
+        return <rect x={x} y={y} width={w} height={h} rx={2} style={{ fill: 'rgb(var(--c-brand))' }} opacity={0.75} />
+      case 'reception':
+        return <rect x={x} y={y} width={w} height={h} rx={h * 0.4} style={{ fill: surf2, stroke: WALL_IN }} strokeWidth={1.1} />
+      case 'storage':
+      default:
+        return <rect x={x} y={y} width={w} height={h} rx={2} style={{ fill: surf2, stroke: WALL_IN }} strokeWidth={1} />
+    }
+  })()
+  return (
+    <g style={{ pointerEvents: 'none' }} transform={item.rot ? `rotate(${item.rot} ${cx} ${cy})` : undefined}>
+      {inner}
+    </g>
+  )
 }
 
 export function FloorSVG({
-  floorId,
+  plan,
   seats,
   hoveredRoomId,
   onRoomHover,
 }: {
-  floorId: string
+  plan: FloorPlan
   seats: Seat[]
   hoveredRoomId?: string | null
   onRoomHover?: (room: RoomShape | null, e?: React.PointerEvent) => void
 }) {
-  const geo: FloorGeometry = FLOOR_GEOMETRY[floorId]
   const workstations = seats.filter((s) => s.seatType === 'workstation')
-  const plate = geo.plate ?? geo.slabRect
+  const plate = plan.plate ?? { x: 2, y: 2, w: plan.vbw - 4, h: plan.vbh - 4 }
 
   return (
-    <svg viewBox={`0 0 ${geo.vbw} ${geo.vbh}`} width={geo.vbw} height={geo.vbh} className="select-none">
+    <svg viewBox={`0 0 ${plan.vbw} ${plan.vbh}`} width={plan.vbw} height={plan.vbh} className="select-none">
       <defs>
         <pattern id="hatch" width="8" height="8" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
           <line x1="0" y1="0" x2="0" y2="8" style={{ stroke: WALL_IN }} strokeWidth="1" opacity="0.5" />
@@ -137,7 +251,7 @@ export function FloorSVG({
       <rect x={plate.x} y={plate.y} width={plate.w} height={plate.h} rx={14} style={{ fill: FLOOR }} filter="url(#plateShadow)" />
 
       {/* corridors (walkable) */}
-      {(geo.corridors ?? []).map((c, i) => (
+      {(plan.corridors ?? []).map((c, i) => (
         <g key={i} style={{ pointerEvents: 'none' }}>
           <rect x={c.x} y={c.y} width={c.w} height={c.h} style={{ fill: CORRIDOR }} />
           <line
@@ -154,7 +268,7 @@ export function FloorSVG({
       ))}
 
       {/* rooms */}
-      {geo.rooms.map((r) => {
+      {plan.rooms.map((r) => {
         const hovered = hoveredRoomId === r.id
         return (
           <g
@@ -176,11 +290,12 @@ export function FloorSVG({
             {(r.kind === 'meeting' || r.kind === 'collab') && r.chairs && <MeetingTable room={r} />}
             {r.kind === 'training' && <TrainingRoom room={r} />}
             {r.kind === 'office' && <ExecOffice room={r} />}
-            <text x={r.x + 10} y={r.y + 20} style={{ fill: 'rgb(var(--c-text))', pointerEvents: 'none' }} fontSize={Math.max(9, Math.min(13.5, (r.w - 14) / (r.label.length * 0.56)))} fontWeight={650} className="font-sans">
+            {r.kind === 'cabin' && r.w < 120 && r.h < 130 && <CabinDesk room={r} />}
+            <text x={r.x + 8} y={r.y + 17} style={{ fill: 'rgb(var(--c-text))', pointerEvents: 'none' }} fontSize={Math.max(8, Math.min(13, (r.w - 12) / (r.label.length * 0.56)))} fontWeight={650} className="font-sans">
               {r.label}
             </text>
             {r.sub && r.h >= 40 && (
-              <text x={r.x + 10} y={r.y + 34} style={{ fill: 'rgb(var(--c-text-subtle))', pointerEvents: 'none' }} fontSize={Math.max(8, Math.min(10.5, (r.w - 14) / (r.sub.length * 0.52)))} className="font-sans">
+              <text x={r.x + 8} y={r.y + 31} style={{ fill: 'rgb(var(--c-text-subtle))', pointerEvents: 'none' }} fontSize={Math.max(7, Math.min(10, (r.w - 12) / (r.sub.length * 0.52)))} className="font-sans">
                 {r.sub}
               </text>
             )}
@@ -188,35 +303,35 @@ export function FloorSVG({
         )
       })}
 
-      {/* cabins — walled cells with a desk + centered marker (marker drawn by canvas) */}
-      {geo.cabins.map((c) => {
-        const booth = c.seatNumber.startsWith('P')
-        return (
-          <g key={c.seatNumber} style={{ pointerEvents: 'none' }}>
-            <rect x={c.x} y={c.y} width={c.w} height={c.h} rx={4} style={{ fill: 'rgb(var(--c-surface))', stroke: WALL }} strokeWidth={2.2} />
-            {!booth && (
-              <rect x={c.x + c.w / 2 - 15} y={c.y + c.h - 22} width={30} height={11} rx={2} style={{ fill: 'rgb(var(--c-surface-2))', stroke: WALL_IN }} strokeWidth={0.9} />
-            )}
-            <text x={c.x + 6} y={c.y + 15} style={{ fill: 'rgb(var(--c-text-muted))' }} fontSize={10} fontWeight={600} className="font-sans">
-              {booth ? 'Booth' : c.seatNumber === 'C7' || c.seatNumber === 'C8' ? `Cabin ${c.seatNumber.slice(1)}` : c.seatNumber}
-            </text>
-          </g>
-        )
-      })}
+      {/* typed partition walls */}
+      {plan.walls.map((w) => <WallSeg key={w.id} wall={w} ppf={plan.pxPerFoot} />)}
+
+      {/* user furniture */}
+      {plan.furniture.map((f) => <FurnitureGlyph key={f.id} item={f} />)}
+
+      {/* doors */}
+      {plan.doors.map((d) => <DoorGlyph key={d.id} door={d} />)}
 
       {/* desks under workstation markers */}
       {workstations.map((s) => (
-        <Desk key={s.id} cx={s.x * geo.vbw} cy={s.y * geo.vbh} r={geo.markerR ?? 8} />
+        <Desk key={s.id} cx={s.x * plan.vbw} cy={s.y * plan.vbh} r={plan.markerR ?? 8} />
       ))}
 
-      {/* entry marker */}
-      {(geo.markers ?? []).map((m, i) => (
+      {/* entry markers */}
+      {(plan.markers ?? []).map((m, i) => (
         <g key={i} style={{ pointerEvents: 'none' }}>
           <path d={`M ${m.x - 8} ${m.y - 10} L ${m.x + 8} ${m.y - 10} L ${m.x} ${m.y - 1} Z`} style={{ fill: 'rgb(var(--c-brand))' }} />
           <text x={m.x} y={m.y + 12} textAnchor="middle" style={{ fill: 'rgb(var(--c-text-subtle))' }} fontSize={11} fontWeight={600} letterSpacing={0.5} className="font-sans uppercase">
             {m.label}
           </text>
         </g>
+      ))}
+
+      {/* zone captions */}
+      {(plan.zoneLabels ?? []).map((z, i) => (
+        <text key={i} x={z.x} y={z.y} style={{ fill: 'rgb(var(--c-text-subtle))', pointerEvents: 'none' }} fontSize={12} fontWeight={600} letterSpacing={0.6} className="font-sans uppercase" opacity={0.7}>
+          {z.text}
+        </text>
       ))}
 
       {/* exterior wall (drawn last, on top) */}
