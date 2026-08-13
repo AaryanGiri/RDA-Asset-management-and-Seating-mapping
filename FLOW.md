@@ -33,18 +33,18 @@ maintenance, overhead & misc cost) · colour the map by **department** · and tr
 
 Seat statuses: **Vacant · Occupied · On notice · Maintenance · Blocked**.
 
-## Module B — Asset Lifecycle
+## Module B — Asset Management
 
-Every physical asset is QR-tagged and tracked:
+A simple, traceable record of every asset — no QR:
 
-1. **Register & tag** *(Admin)* — add the asset to the **Register** with a generated QR code + printable label.
-2. **Scan to open** *(Anyone)* — scan the QR to open the asset **passport**: identity, location, custodian, photos, timeline.
-3. **Verify condition** *(AI + Admin)* — monthly check; AI suggests a condition & confidence, Admin accepts / remarks / flags.
-4. **Move (governed)** *(Admin)* — request → AI condition suggestion → approve → in-transit → **receipt scan** updates location.
-5. **Analyse** *(Admin)* — **Asset Analytics** rolls up value, category, condition and verification compliance.
+1. **Classify & register** *(Admin)* — add the asset under a category (**Tangible / Intangible / Land & Building**) and subcategory, with a unique **Asset ID**. Subcategories are admin-maintainable.
+2. **Assign & deploy** *(Admin)* — set the assigned person, office/location and responsible person, and capture a **deployment image**.
+3. **Track & update** *(Responsible)* — keep status, remarks and a **current image** up to date through the asset's life.
+4. **Flag defective** *(Responsible)* — if damaged or proposed for disposal, upload a **defect image** + remarks for Admin review.
+5. **Review & act** *(Admin)* — review the image & remarks, then **discard**, move to storage, or return to use.
 
-Asset conditions: **New / Good · Fair · Damaged / Beyond repair**.
-**AI moments are assistive, not automatic** — a person always makes the final call.
+Asset record retains: deployment details & image · current assignment & location · current/defect images · remarks · action taken by Admin.
+Asset statuses: **In Use · In Storage · Defective · Discarded**.
 
 ---
 *Concept demo · all data is mock and in-browser.*

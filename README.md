@@ -38,22 +38,22 @@ Build a static bundle with `npm run build` (output in `dist/`).
 - Employee Locator directory and a Seating Analytics dashboard (occupancy, vacancy,
   upcoming-vacancy) with premium charts.
 
-**Module B — Asset Lifecycle Management (QR-based)**
-- Asset register with generated **QR codes** and a printable label view.
-- A rich asset **passport**: identity, location, custodian, condition, photo history
-  (guided capture slots), and a full lifecycle timeline.
-- Simulated **scan-to-open** (mobile-first), guided photo capture, and a governed
-  **movement workflow** (request → AI condition suggestion + confidence → human confirm →
-  in-transit → receipt scan) on a kanban board.
-- Monthly **condition verification** with a simulated AI suggestion (New / Good / Fair /
-  Damaged / Beyond-Repair + confidence + a highlighted "changed area") and a human decision.
-  *AI moments are clearly assistive — no real model runs.*
-- Asset Analytics dashboard (category / value / condition / status / verification compliance).
+**Module B — Asset Management (Section 7 — simple & traceable, no QR)**
+- Asset register classified into **Tangible / Intangible / Land & Building**, each with
+  admin-maintainable **subcategories**; every asset has a unique **Asset ID**.
+- Asset record: category + subcategory, name, **assigned employee**, office/location,
+  **responsible person**, status (In Use / In Storage / Defective / Discarded) and remarks.
+- **Image management** — deployment image at assignment, current image over life, and a
+  **defect image** required before disposal (real file upload, stored on the record).
+- **Defective → action** flow: the responsible person flags a defect with an image + remarks;
+  Admin reviews and decides — **discard**, move to storage, or return to use.
+- Full **lifecycle timeline** per asset (deployment, reassignment, images, defect, action).
+- Add asset + manage categories from the register; CSV export.
 
 **Shared shell**
 - One executive dashboard spanning both modules, a global command palette (⌘/Ctrl-K),
   a notifications area, light + dark mode, skeleton loaders, and micro-interactions throughout.
-- Fully responsive; the scan / verify flows are designed for phones.
+- **Admin / Employee** roles switchable from the top bar; fully responsive.
 
 ## Tech
 
