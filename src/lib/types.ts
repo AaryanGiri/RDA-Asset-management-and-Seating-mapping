@@ -149,119 +149,64 @@ export interface SeatEvent {
   timestamp: string
 }
 
-// ── Assets ──────────────────────────────────────────────────
+// ── Assets (Section 7 — a simple, traceable asset register) ──────────────────
+// Three primary categories, each with admin-maintainable subcategories. Every
+// asset carries assignment, a responsible person, status, remarks, images
+// (deployment / current / defect) and a lifecycle trail — no QR, no complexity.
 
-export type AssetCondition = 'new' | 'good' | 'fair' | 'damaged' | 'beyond-repair'
-export type AssetStatus = 'in-use' | 'in-transit' | 'under-repair' | 'in-storage' | 'disposed'
+export type AssetPrimaryCategory = 'tangible' | 'intangible' | 'land-building'
 
 export interface AssetCategory {
-  id: string
+  id: AssetPrimaryCategory
   name: string
-  icon: string
-  photoViews: string[] // required guided photo views
+  subcategories: string[] // maintained by Admin
 }
 
-export interface AssetPhoto {
+export type AssetStatus = 'in-use' | 'in-storage' | 'defective' | 'discarded'
+
+export type AssetImageKind = 'deployment' | 'current' | 'defect'
+export interface AssetImage {
   id: string
-  view: string
-  hue: number // placeholder tint for the generated photo slot
+  kind: AssetImageKind
+  src?: string // uploaded data URL, when a real image is attached
+  hue: number // placeholder tint used when no file is attached
   capturedAt: string
   note?: string
 }
 
-export interface AssetTimelineEvent {
+export type AssetEventType =
+  | 'deployed' | 'reassigned' | 'relocated' | 'image' | 'remark' | 'defective' | 'action' | 'discarded'
+
+export interface AssetLifecycleEvent {
   id: string
-  type:
-    | 'onboarded'
-    | 'moved'
-    | 'verified'
-    | 'repair'
-    | 'condition-change'
-    | 'custodian-change'
-    | 'flagged'
-    | 'disposed'
+  type: AssetEventType
   title: string
   detail: string
   actor: string
   timestamp: string
-  condition?: AssetCondition
-  ai?: boolean
 }
 
 export interface Asset {
   id: string
-  tag: string // human asset ID / QR payload, e.g. LOC-MON-0142
-  categoryId: string
-  name: string
-  brand: string
-  model: string
-  serialNumber: string
-  purchaseDate: string
-  purchaseValue: number
-  supplier: string
-  warrantyUntil: string
-  officeId: string
-  floorId: string
-  room: string
-  custodianId: string
-  department: string
-  condition: AssetCondition
+  assetId: string // unique Asset ID, e.g. RDA-LAP-0142
+  category: AssetPrimaryCategory
+  subcategory: string
+  name: string // name / description
+  assignedEmployeeId?: string // person the asset is assigned to
+  officeId: string // office / location
+  location?: string // room / area within the office
+  responsiblePerson: string
   status: AssetStatus
-  lastVerifiedAt?: string
-  nextVerificationDue: string
-  photos: AssetPhoto[]
-  timeline: AssetTimelineEvent[]
-  flagged?: string // exception note
-}
-
-export type MovementStage =
-  | 'requested'
-  | 'ai-review'
-  | 'approved'
-  | 'in-transit'
-  | 'received'
-  | 'rejected'
-
-export interface MovementRequest {
-  id: string
-  assetId: string
-  assetTag: string
-  assetName: string
-  fromOfficeId: string
-  fromRoom: string
-  toOfficeId: string
-  toRoom: string
-  reason: string
-  requestedBy: string
-  approver: string
-  expectedDate: string
-  stage: MovementStage
-  aiCondition?: AssetCondition
-  aiConfidence?: number
-  humanCondition?: AssetCondition
-  createdAt: string
-  updatedAt: string
-}
-
-export interface VerificationTask {
-  id: string
-  assetId: string
-  assetTag: string
-  assetName: string
-  officeId: string
-  dueDate: string
-  status: 'pending' | 'completed' | 'overdue'
-  priorCondition: AssetCondition
-  aiCondition?: AssetCondition
-  aiConfidence?: number
-  aiChangeArea?: { x: number; y: number; r: number }
-  humanDecision?: 'accepted' | 'accepted-remark' | 'rejected' | 'reinspect' | 'flag-repair'
-  completedAt?: string
+  remarks?: string
+  deploymentDate: string
+  images: AssetImage[] // deployment / current / defect
+  actionTaken?: string // Admin decision for a defective asset
+  lifecycle: AssetLifecycleEvent[]
 }
 
 export interface Notification {
   id: string
-  kind: 'seat' | 'asset' | 'movement' | 'verification' | 'system'
+  kind: 'seat' | 'asset' | 'system'
   title: string
   body: string
   timestamp: string

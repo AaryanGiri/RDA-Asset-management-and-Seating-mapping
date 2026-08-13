@@ -6,10 +6,6 @@ import { DirectoryPage } from '@/pages/DirectoryPage'
 import { SeatingAnalyticsPage } from '@/pages/SeatingAnalyticsPage'
 import { AssetsPage } from '@/pages/AssetsPage'
 import { AssetPassport } from '@/pages/AssetPassport'
-import { MovementsPage } from '@/pages/MovementsPage'
-import { VerificationPage } from '@/pages/VerificationPage'
-import { AssetAnalyticsPage } from '@/pages/AssetAnalyticsPage'
-import { ScanPage } from '@/pages/ScanPage'
 import { MySeatPage } from '@/pages/MySeatPage'
 import { RequestsPage } from '@/pages/RequestsPage'
 import { MeetingRoomsPage } from '@/pages/MeetingRoomsPage'
@@ -35,10 +31,6 @@ export default function App() {
         <Route path="/seating-analytics" element={<AdminOnly><SeatingAnalyticsPage /></AdminOnly>} />
         <Route path="/assets" element={<AdminOnly><AssetsPage /></AdminOnly>} />
         <Route path="/assets/:id" element={<AdminOnly><AssetPassport /></AdminOnly>} />
-        <Route path="/movements" element={<AdminOnly><MovementsPage /></AdminOnly>} />
-        <Route path="/verification" element={<AdminOnly><VerificationPage /></AdminOnly>} />
-        <Route path="/asset-analytics" element={<AdminOnly><AssetAnalyticsPage /></AdminOnly>} />
-        <Route path="/scan" element={<AdminOnly><ScanPage /></AdminOnly>} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Route>
     </Routes>

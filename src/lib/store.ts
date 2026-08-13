@@ -15,19 +15,17 @@ import {
 import type { Floor, FloorProperties, Office, UserRole } from './types'
 import type {
   Asset,
-  AssetCondition,
+  AssetImageKind,
+  AssetPrimaryCategory,
   Employee,
   MeetingBooking,
   MeetingRoom,
   MeetingRoomStatus,
-  MovementRequest,
-  MovementStage,
   Notification,
   Seat,
   SeatEvent,
   SeatRequest,
   SeatType,
-  VerificationTask,
 } from './types'
 import { latency, uid, daysAgoISO, daysFromNowISO } from './utils'
 
@@ -55,8 +53,6 @@ interface DataState {
   seatEvents: SeatEvent[]
   categories: typeof seed.categories
   assets: Asset[]
-  movements: MovementRequest[]
-  verifications: VerificationTask[]
   notifications: Notification[]
   floorPlans: Record<string, FloorPlan>
   meetingRooms: MeetingRoom[]
@@ -119,12 +115,20 @@ interface DataState {
   createFloor: (officeId: string, opts: { name: string; widthFt: number; heightFt: number; pxPerFoot: number; level?: number }) => string
   removeFloor: (floorId: string) => void
 
-  // asset actions
-  advanceMovement: (id: string, humanCondition?: AssetCondition) => Promise<void>
-  createMovement: (m: Omit<MovementRequest, 'id' | 'createdAt' | 'updatedAt' | 'stage'>) => Promise<void>
-  decideVerification: (id: string, decision: VerificationTask['humanDecision'], newCondition: AssetCondition) => Promise<void>
-  runAIVerification: (id: string) => Promise<{ condition: AssetCondition; confidence: number }>
+  // asset actions (Section 7)
   updateAsset: (id: string, patch: Partial<Asset>) => void
+  assignAsset: (id: string, employeeId: string, location?: string) => Promise<void>
+  addAssetImage: (id: string, kind: AssetImageKind, src?: string, note?: string) => void
+  addAssetRemark: (id: string, remarks: string) => void
+  flagDefective: (id: string, remarks: string, imageSrc?: string) => Promise<void>
+  takeAssetAction: (id: string, action: 'discard' | 'store' | 'use', note?: string) => Promise<void>
+  addSubcategory: (categoryId: AssetPrimaryCategory, sub: string) => void
+  removeSubcategory: (categoryId: AssetPrimaryCategory, sub: string) => void
+  addAsset: (input: {
+    assetId: string; category: AssetPrimaryCategory; subcategory: string; name: string
+    assignedEmployeeId?: string; officeId: string; location?: string; responsiblePerson: string
+    remarks?: string; deploymentImage?: string
+  }) => string
 
   // notifications
   markNotificationRead: (id: string) => void
@@ -496,83 +500,101 @@ export const useData = create<DataState>()(
         })
       },
 
-      runAIVerification: async (id) => {
-        await latency(900, 1700)
-        const task = get().verifications.find((v) => v.id === id)
-        const prior = task?.priorCondition ?? 'good'
-        // simulate a plausible AI suggestion near the prior condition
-        const ladder: AssetCondition[] = ['new', 'good', 'fair', 'damaged', 'beyond-repair']
-        const pi = Math.max(0, ladder.indexOf(prior))
-        const drift = Math.random() < 0.5 ? 0 : 1
-        const condition = ladder[Math.min(ladder.length - 1, pi + drift)]
-        const confidence = Math.round(74 + Math.random() * 22)
-        const changeArea = drift > 0 ? { x: 0.3 + Math.random() * 0.4, y: 0.3 + Math.random() * 0.4, r: 0.12 + Math.random() * 0.06 } : undefined
-        set((s) => ({
-          verifications: s.verifications.map((v) => (v.id === id ? { ...v, aiCondition: condition, aiConfidence: confidence, aiChangeArea: changeArea } : v)),
-        }))
-        return { condition, confidence }
-      },
+      updateAsset: (id, patch) => set((s) => ({ assets: s.assets.map((a) => (a.id === id ? { ...a, ...patch } : a)) })),
 
-      decideVerification: async (id, decision, newCondition) => {
+      assignAsset: async (id, employeeId, location) => {
         await latency()
-        const task = get().verifications.find((v) => v.id === id)
+        const emp = get().employees.find((e) => e.id === employeeId)
+        const now = new Date().toISOString()
         set((s) => ({
-          verifications: s.verifications.map((v) => (v.id === id ? { ...v, status: 'completed', humanDecision: decision, completedAt: new Date().toISOString() } : v)),
-          assets: s.assets.map((a) =>
-            a.id === task?.assetId
-              ? {
-                  ...a,
-                  condition: newCondition,
-                  lastVerifiedAt: new Date().toISOString(),
-                  nextVerificationDue: daysFromNowISO(30),
-                  flagged: decision === 'flag-repair' ? 'Flagged for repair at verification' : a.flagged,
-                  timeline: [
-                    ...a.timeline,
-                    { id: uid('tl'), type: 'verified', title: 'Monthly verification', detail: `AI suggested ${newCondition}; Admin ${decision?.replace('-', ' ')}.`, actor: 'System · AI assist', timestamp: new Date().toISOString(), condition: newCondition, ai: true },
-                  ],
-                }
-              : a,
-          ),
+          assets: s.assets.map((a) => (a.id === id ? {
+            ...a, assignedEmployeeId: employeeId, location: location ?? a.location, status: a.status === 'in-storage' ? 'in-use' : a.status,
+            lifecycle: [...a.lifecycle, { id: uid('al'), type: 'reassigned', title: 'Reassigned', detail: `Assigned to ${emp?.fullName ?? 'employee'}${location ? ` · ${location}` : ''}`, actor: actorName, timestamp: now }],
+          } : a)),
         }))
-        get().pushNotification({ kind: 'verification', tone: decision === 'flag-repair' ? 'warning' : 'success', title: 'Verification recorded', body: `${task?.assetTag} · condition ${newCondition}.` })
+        get().pushNotification({ kind: 'asset', tone: 'success', title: 'Asset assigned', body: `Assigned to ${emp?.fullName}.` })
       },
 
-      createMovement: async (m) => {
-        await latency()
-        const rec: MovementRequest = { ...m, id: uid('mov'), stage: 'requested', createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() }
-        set((s) => ({ movements: [rec, ...s.movements] }))
-        get().pushNotification({ kind: 'movement', tone: 'info', title: 'Movement requested', body: `${m.assetTag} · ${m.reason}.` })
-      },
-
-      advanceMovement: async (id, humanCondition) => {
-        await latency(500, 1100)
-        const order: MovementStage[] = ['requested', 'ai-review', 'approved', 'in-transit', 'received']
+      addAssetImage: (id, kind, src, note) => {
+        const now = new Date().toISOString()
         set((s) => ({
-          movements: s.movements.map((m) => {
-            if (m.id !== id) return m
-            const idx = order.indexOf(m.stage)
-            const next = order[Math.min(order.length - 1, idx + 1)]
-            let patch: Partial<MovementRequest> = { stage: next, updatedAt: new Date().toISOString() }
-            if (next === 'ai-review') {
-              const conds: AssetCondition[] = ['good', 'good', 'fair', 'damaged']
-              patch.aiCondition = conds[Math.floor(Math.random() * conds.length)]
-              patch.aiConfidence = Math.round(74 + Math.random() * 22)
+          assets: s.assets.map((a) => (a.id === id ? {
+            ...a,
+            images: [...a.images, { id: uid('img'), kind, src, hue: kind === 'defect' ? 12 : Math.floor(Math.random() * 360), capturedAt: now, note }],
+            lifecycle: [...a.lifecycle, { id: uid('al'), type: 'image', title: kind === 'deployment' ? 'Deployment image added' : kind === 'defect' ? 'Defect image added' : 'Current image added', detail: note ?? 'Image uploaded', actor: actorName, timestamp: now }],
+          } : a)),
+        }))
+      },
+
+      addAssetRemark: (id, remarks) => {
+        const now = new Date().toISOString()
+        set((s) => ({
+          assets: s.assets.map((a) => (a.id === id ? {
+            ...a, remarks,
+            lifecycle: [...a.lifecycle, { id: uid('al'), type: 'remark', title: 'Remark updated', detail: remarks, actor: actorName, timestamp: now }],
+          } : a)),
+        }))
+      },
+
+      flagDefective: async (id, remarks, imageSrc) => {
+        await latency()
+        const now = new Date().toISOString()
+        const a0 = get().assets.find((a) => a.id === id)
+        set((s) => ({
+          assets: s.assets.map((a) => (a.id === id ? {
+            ...a, status: 'defective', remarks,
+            images: [...a.images, { id: uid('img'), kind: 'defect', src: imageSrc, hue: 12, capturedAt: now, note: 'Damage / defect' }],
+            lifecycle: [...a.lifecycle, { id: uid('al'), type: 'defective', title: 'Flagged defective', detail: remarks, actor: actorName, timestamp: now }],
+          } : a)),
+        }))
+        get().pushNotification({ kind: 'asset', tone: 'warning', title: 'Asset flagged defective', body: `${a0?.assetId} · image & remarks sent to Admin for review.` })
+      },
+
+      takeAssetAction: async (id, action, note) => {
+        await latency()
+        const now = new Date().toISOString()
+        const a0 = get().assets.find((a) => a.id === id)
+        set((s) => ({
+          assets: s.assets.map((a) => {
+            if (a.id !== id) return a
+            const status = action === 'discard' ? 'discarded' : action === 'store' ? 'in-storage' : 'in-use'
+            const label = action === 'discard' ? 'Approved for disposal' : action === 'store' ? 'Moved to storage' : 'Returned to use'
+            return {
+              ...a, status, actionTaken: label,
+              lifecycle: [
+                ...a.lifecycle,
+                { id: uid('al'), type: 'action', title: 'Admin action', detail: `${label}${note ? ` — ${note}` : ''}`, actor: actorName, timestamp: now },
+                ...(action === 'discard' ? [{ id: uid('al'), type: 'discarded' as const, title: 'Discarded', detail: 'Removed from the active register', actor: actorName, timestamp: now }] : []),
+              ],
             }
-            if (next === 'approved' && humanCondition) patch.humanCondition = humanCondition
-            return { ...m, ...patch }
           }),
         }))
-        const m = get().movements.find((x) => x.id === id)
-        if (m) {
-          const label: Record<MovementStage, string> = { requested: 'requested', 'ai-review': 'under AI review', approved: 'approved', 'in-transit': 'in transit', received: 'received', rejected: 'rejected' }
-          get().pushNotification({ kind: 'movement', tone: m.stage === 'received' ? 'success' : 'info', title: `Movement ${label[m.stage]}`, body: `${m.assetTag} → ${m.toRoom}.` })
-          if (m.stage === 'received') {
-            set((s) => ({ assets: s.assets.map((a) => (a.id === m.assetId ? { ...a, room: m.toRoom, officeId: m.toOfficeId, status: 'in-use', timeline: [...a.timeline, { id: uid('tl'), type: 'moved', title: 'Relocated', detail: `Received at ${m.toRoom} — receipt scan confirmed`, actor: actorName, timestamp: new Date().toISOString() }] } : a)) }))
-          }
-        }
+        get().pushNotification({ kind: 'asset', tone: action === 'discard' ? 'info' : 'success', title: 'Action recorded', body: `${a0?.assetId} · ${action === 'discard' ? 'approved for disposal' : action === 'store' ? 'moved to storage' : 'returned to use'}.` })
       },
 
-      updateAsset: (id, patch) => set((s) => ({ assets: s.assets.map((a) => (a.id === id ? { ...a, ...patch } : a)) })),
+      addSubcategory: (categoryId, sub) =>
+        set((s) => ({ categories: s.categories.map((c) => (c.id === categoryId && sub.trim() && !c.subcategories.includes(sub.trim()) ? { ...c, subcategories: [...c.subcategories, sub.trim()] } : c)) })),
+      removeSubcategory: (categoryId, sub) =>
+        set((s) => ({ categories: s.categories.map((c) => (c.id === categoryId ? { ...c, subcategories: c.subcategories.filter((x) => x !== sub) } : c)) })),
+
+      addAsset: (input) => {
+        const id = uid('ast')
+        const now = new Date().toISOString()
+        set((s) => {
+          const emp = s.employees.find((e) => e.id === input.assignedEmployeeId)
+          const asset: Asset = {
+            id, assetId: input.assetId, category: input.category, subcategory: input.subcategory, name: input.name,
+            assignedEmployeeId: input.assignedEmployeeId, officeId: input.officeId, location: input.location,
+            responsiblePerson: input.responsiblePerson, status: 'in-use', remarks: input.remarks,
+            deploymentDate: now,
+            images: input.deploymentImage ? [{ id: uid('img'), kind: 'deployment', src: input.deploymentImage, hue: 210, capturedAt: now, note: 'Condition at deployment' }] : [],
+            lifecycle: [{ id: uid('al'), type: 'deployed', title: 'Asset deployed', detail: emp ? `Assigned to ${emp.fullName}` : `Recorded under ${input.officeId}`, actor: actorName, timestamp: now }],
+          }
+          return { assets: [asset, ...s.assets] }
+        })
+        get().pushNotification({ kind: 'asset', tone: 'success', title: 'Asset added', body: `${input.assetId} · ${input.name} deployed.` })
+        return id
+      },
 
       markNotificationRead: (id) => set((s) => ({ notifications: s.notifications.map((n) => (n.id === id ? { ...n, read: true } : n)) })),
       markAllRead: () => set((s) => ({ notifications: s.notifications.map((n) => ({ ...n, read: true })) })),
@@ -586,16 +608,16 @@ export const useData = create<DataState>()(
     }),
     {
       name: 'locus.db',
-      version: 15,
-      // v15 adds roles, floor properties, seat requests and meeting rooms. The
-      // persisted shape changed, so returning an empty slice lets the shallow
-      // merge rebuild everything from the fresh seed; later edits still persist.
+      version: 16,
+      // v16 replaces the asset module with the Section 7 model (categories +
+      // subcategories, assignment, images, remarks, lifecycle) and drops the old
+      // movements / verifications / QR. Returning an empty slice rebuilds
+      // everything from the fresh seed; later edits still persist.
       migrate: () => ({}) as DataState,
       partialize: (s) => ({
         offices: s.offices, floors: s.floors, departments: s.departments,
         employees: s.employees, seats: s.seats, seatEvents: s.seatEvents,
-        categories: s.categories, assets: s.assets, movements: s.movements,
-        verifications: s.verifications, notifications: s.notifications,
+        categories: s.categories, assets: s.assets, notifications: s.notifications,
         floorPlans: s.floorPlans, meetingRooms: s.meetingRooms, meetingBookings: s.meetingBookings,
         seatRequests: s.seatRequests, role: s.role, personaId: s.personaId,
       }),

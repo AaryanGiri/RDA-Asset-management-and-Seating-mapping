@@ -3,8 +3,8 @@ import { X } from 'lucide-react'
 import { createPortal } from 'react-dom'
 import { useEffect, type ReactNode } from 'react'
 import { cn, initials } from '@/lib/utils'
-import { ASSET_STATUS_META, CONDITION_META, SEAT_STATUS } from '@/lib/status'
-import type { AssetCondition, AssetStatus, SeatStatus } from '@/lib/types'
+import { ASSET_STATUS_META, SEAT_STATUS } from '@/lib/status'
+import type { AssetStatus, SeatStatus } from '@/lib/types'
 
 export function Avatar({ name, hue = 220, size = 36, className }: { name: string; hue?: number; size?: number; className?: string }) {
   return (
@@ -38,16 +38,6 @@ export function StatusDot({ status, pulse }: { status: SeatStatus; pulse?: boole
 
 export function SeatBadge({ status, className }: { status: SeatStatus; className?: string }) {
   const m = SEAT_STATUS[status]
-  return (
-    <span className={cn('chip', m.bg, m.text, className)}>
-      <span className={cn('h-1.5 w-1.5 rounded-full', m.dot)} />
-      {m.label}
-    </span>
-  )
-}
-
-export function ConditionBadge({ condition, className }: { condition: AssetCondition; className?: string }) {
-  const m = CONDITION_META[condition]
   return (
     <span className={cn('chip', m.bg, m.text, className)}>
       <span className={cn('h-1.5 w-1.5 rounded-full', m.dot)} />

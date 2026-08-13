@@ -64,17 +64,11 @@ export default {
           '70%': { transform: 'scale(1.6)', opacity: '0' },
           '100%': { opacity: '0' },
         },
-        'scan-line': {
-          '0%': { top: '8%' },
-          '50%': { top: '88%' },
-          '100%': { top: '8%' },
-        },
       },
       animation: {
         'fade-in': 'fade-in 0.35s cubic-bezier(0.22, 1, 0.36, 1)',
         shimmer: 'shimmer 1.6s infinite',
         'pulse-ring': 'pulse-ring 1.8s cubic-bezier(0.22, 1, 0.36, 1) infinite',
-        'scan-line': 'scan-line 2.4s ease-in-out infinite',
       },
     },
   },

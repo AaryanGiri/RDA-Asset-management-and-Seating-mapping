@@ -5,14 +5,12 @@ import {
 import type {
   Asset,
   AssetCategory,
-  AssetCondition,
   AssetStatus,
   Department,
   Employee,
   Floor,
   MeetingBooking,
   MeetingRoom,
-  MovementRequest,
   Notification,
   Office,
   RequestStatus,
@@ -21,7 +19,6 @@ import type {
   SeatRequest,
   SeatRequestType,
   SeatStatus,
-  VerificationTask,
 } from './types'
 import { daysAgoISO, daysFromNowISO, uid } from './utils'
 
@@ -99,8 +96,6 @@ export interface SeedData {
   seatEvents: SeatEvent[]
   categories: AssetCategory[]
   assets: Asset[]
-  movements: MovementRequest[]
-  verifications: VerificationTask[]
   notifications: Notification[]
   meetingRooms: MeetingRoom[]
   meetingBookings: MeetingBooking[]
@@ -244,176 +239,106 @@ function mkEvent(seat: Seat, type: SeatEvent['type'], emp: Employee | undefined,
   }
 }
 
-// ── Assets ──────────────────────────────────────────────────────────────────
+// ── Assets (Section 7 — three primary categories + subcategories) ────────────
 export const CATEGORIES: AssetCategory[] = [
-  { id: 'monitor', name: 'Monitor', icon: 'monitor', photoViews: ['Front', 'Rear ports', 'Serial label', 'Damage area'] },
-  { id: 'laptop', name: 'Laptop', icon: 'laptop', photoViews: ['Lid closed', 'Open / screen', 'Serial label', 'Damage area'] },
-  { id: 'chair', name: 'Task Chair', icon: 'armchair', photoViews: ['Front', 'Base & castors', 'Label', 'Damage area'] },
-  { id: 'desk', name: 'Desk', icon: 'table', photoViews: ['Top surface', 'Frame', 'Label', 'Damage area'] },
-  { id: 'ac', name: 'AC Unit', icon: 'wind', photoViews: ['Front grille', 'Rating plate', 'Filter', 'Damage area'] },
-  { id: 'printer', name: 'Printer', icon: 'printer', photoViews: ['Front', 'Rear', 'Serial label', 'Damage area'] },
-  { id: 'projector', name: 'Projector', icon: 'projector', photoViews: ['Lens side', 'Ports', 'Serial label', 'Damage area'] },
-  { id: 'switch', name: 'Network Switch', icon: 'network', photoViews: ['Front ports', 'Rear', 'Asset label', 'Damage area'] },
+  { id: 'tangible', name: 'Tangible Assets', subcategories: ['Laptop', 'Desktop', 'Monitor', 'Printer', 'Furniture', 'Networking', 'Projector', 'Mobile Phone'] },
+  { id: 'intangible', name: 'Intangible Assets', subcategories: ['Software', 'License', 'Subscription', 'Domain', 'Cloud Service'] },
+  { id: 'land-building', name: 'Land & Building', subcategories: ['Office Space', 'Building', 'Land', 'Parking'] },
 ]
 
-const BRANDS: Record<string, [string, string][]> = {
-  monitor: [['Dell', 'U2723QE'], ['LG', '27UP850'], ['Samsung', 'ViewFinity S8'], ['BenQ', 'PD2705U']],
-  laptop: [['Apple', 'MacBook Pro 14'], ['Dell', 'Latitude 7440'], ['Lenovo', 'ThinkPad X1'], ['HP', 'EliteBook 840']],
-  chair: [['Herman Miller', 'Aeron'], ['Steelcase', 'Series 2'], ['Featherlite', 'Optima'], ['Godrej', 'Teardrop HB']],
-  desk: [['Steelcase', 'Ology'], ['Featherlite', 'Contact'], ['Godrej', 'Elance'], ['Haworth', 'Jump']],
-  ac: [['Daikin', 'FTKF50'], ['Voltas', 'SAC 185V'], ['Blue Star', 'IC518'], ['Hitachi', 'RAU518']],
-  printer: [['HP', 'LaserJet M479'], ['Canon', 'iR 2630'], ['Epson', 'WF-C5790'], ['Brother', 'MFC-L8900']],
-  projector: [['Epson', 'EB-L200'], ['BenQ', 'LK936ST'], ['Sony', 'VPL-PHZ11']],
-  switch: [['Cisco', 'C9200-24'], ['Aruba', '2930F'], ['Ubiquiti', 'USW-Pro-24']],
+const ASSET_NAMES: Record<string, string[]> = {
+  Laptop: ['Dell Latitude 7440', 'MacBook Pro 14', 'Lenovo ThinkPad X1', 'HP EliteBook 840'],
+  Desktop: ['Dell OptiPlex 7010', 'HP ProDesk 400', 'Lenovo ThinkCentre M70'],
+  Monitor: ['Dell U2723QE 27"', 'LG 27UP850', 'Samsung ViewFinity S8'],
+  Printer: ['HP LaserJet M479', 'Canon iR 2630', 'Epson WF-C5790'],
+  Furniture: ['Herman Miller Aeron Chair', 'Steelcase Ology Desk', 'Godrej Storage Cabinet', 'Conference Table (8-seat)'],
+  Networking: ['Cisco C9200-24 Switch', 'Aruba 2930F Switch', 'Fortinet FG-60F Firewall'],
+  Projector: ['Epson EB-L200', 'BenQ LK936ST'],
+  'Mobile Phone': ['iPhone 14', 'Samsung Galaxy S23'],
+  Software: ['AutoCAD 2024', 'MS Office 365', 'Adobe Creative Cloud', 'Primavera P6'],
+  License: ['Windows 11 Pro License', 'SQL Server License', 'Antivirus Enterprise'],
+  Subscription: ['Zoom Enterprise', 'Slack Business+', 'GitHub Enterprise'],
+  Domain: ['rodic.co domain', 'rda-platform.in domain'],
+  'Cloud Service': ['AWS Reserved Instance', 'Azure Subscription'],
+  'Office Space': ['3rd Floor Office — AKF', '1st Floor Office — YMCA'],
+  Building: ['Aga Khan Foundation Wing', 'YMCA Building Block'],
+  Land: ['Gurugram Plot A-258', 'Delhi Plot 12'],
+  Parking: ['Basement Parking Bay', 'Surface Parking Lot'],
 }
-const SUPPLIERS = ['Redington Distribution', 'Ingram Micro', 'Compuage', 'Savex Technologies', 'Direct — OEM']
-const CONDITIONS: AssetCondition[] = ['new', 'good', 'good', 'good', 'fair', 'fair', 'damaged', 'beyond-repair']
-const STATUSES: AssetStatus[] = ['in-use', 'in-use', 'in-use', 'in-use', 'in-storage', 'under-repair']
+const RESPONSIBLE = ['A. Menon (Admin)', 'S. Fernandes (Facilities)', 'R. Kapoor (IT)', 'N. Sinha (Admin)', 'P. Chandra (Facilities)']
+const DEFECT_REMARKS = ['Screen flickering — proposed for disposal', 'Hinge broken, not repairable', 'Motor failure — beyond economic repair', 'Water damage after ceiling leak', 'Battery swollen — safety risk']
+const OK_REMARKS = ['In good working condition', 'Warranty active', 'Recently serviced', 'No issues reported']
 const ROOMS_F1 = ['Tech Innovation', 'CMD Room', 'Meeting Room 1', 'Audio Visual Room', 'Cafe', 'Pantry', 'Store', 'Reception']
 const ROOMS_F2 = ['Conference Room', 'Server Room', 'Meeting Room', 'CEO Cabin', 'Director Cabin', 'R.Innovation Hub', 'Pantry', 'Reception']
+const officeNm = (id: string) => OFFICES.find((o) => o.id === id)?.name ?? id
 
 function makeAssets(employees: Employee[]): Asset[] {
   const out: Asset[] = []
-  const total = 48
+  const active = employees.filter((e) => e.employmentStatus === 'active')
+  const total = 44
+  let n = 140
   for (let i = 0; i < total; i++) {
-    const cat = pick(CATEGORIES)
-    const [brand, model] = pick(BRANDS[cat.id])
-    const condition = pick(CONDITIONS)
-    let status: AssetStatus = pick(STATUSES)
-    if (condition === 'beyond-repair') status = chance(0.5) ? 'under-repair' : 'in-storage'
-    const custodian = pick(employees.filter((e) => e.employmentStatus === 'active'))
+    const cat = i < 30 ? CATEGORIES[0] : i < 40 ? CATEGORIES[1] : CATEGORIES[2]
+    const subcategory = pick(cat.subcategories)
+    const name = pick(ASSET_NAMES[subcategory] ?? [subcategory])
+    const isProperty = cat.id === 'land-building'
+    const assignedEmployee = isProperty ? undefined : pick(active)
     const officeId = chance(0.8) ? 'hq' : pick(['mum', 'blr'])
     const floorId = chance(0.6) ? 'f1' : 'f2'
-    const room = floorId === 'f1' ? pick(ROOMS_F1) : pick(ROOMS_F2)
-    const purchaseDaysAgo = int(60, 1600)
-    const lastVerified = chance(0.7) ? daysAgoISO(int(3, 55)) : undefined
-    const overdue = chance(0.22)
-    const catCode = cat.id.slice(0, 3).toUpperCase()
-    const tag = `AST-${catCode}-${(140 + i).toString().padStart(4, '0')}`
-    const photos = cat.photoViews.slice(0, int(2, 4)).map((view, idx) => ({
-      id: uid('ph'),
-      view,
-      hue: (i * 47 + idx * 60) % 360,
-      capturedAt: daysAgoISO(int(2, 60)),
-    }))
-    const timeline = buildTimeline(tag, brand, condition, purchaseDaysAgo, custodian.fullName)
+    const location = isProperty ? 'Whole floor' : floorId === 'f1' ? pick(ROOMS_F1) : pick(ROOMS_F2)
+    const responsiblePerson = pick(RESPONSIBLE)
+    const deployDaysAgo = int(60, 1500)
+    const roll = rand()
+    let status: AssetStatus = roll < 0.68 ? 'in-use' : roll < 0.82 ? 'in-storage' : roll < 0.94 ? 'defective' : 'discarded'
+    if (isProperty) status = 'in-use'
+    const code = (subcategory.replace(/[^A-Za-z]/g, '').slice(0, 3) || 'AST').toUpperCase()
+    const assetId = `RDA-${code}-${(n++).toString().padStart(4, '0')}`
+
+    const images: Asset['images'] = [
+      { id: uid('img'), kind: 'deployment', hue: (i * 47) % 360, capturedAt: daysAgoISO(deployDaysAgo - 1), note: 'Condition at deployment' },
+    ]
+    if (chance(0.4) && !isProperty) images.push({ id: uid('img'), kind: 'current', hue: (i * 47 + 120) % 360, capturedAt: daysAgoISO(int(5, 40)), note: 'Latest condition' })
+
+    const lifecycle: Asset['lifecycle'] = [
+      { id: uid('al'), type: 'deployed', title: 'Asset deployed', detail: isProperty ? `Recorded under ${officeNm(officeId)}` : `Assigned to ${assignedEmployee?.fullName}`, actor: 'A. Menon (Admin)', timestamp: daysAgoISO(deployDaysAgo) },
+    ]
+    if (chance(0.35) && !isProperty) lifecycle.push({ id: uid('al'), type: 'relocated', title: 'Relocated', detail: `Moved to ${location}`, actor: responsiblePerson, timestamp: daysAgoISO(int(30, deployDaysAgo - 5)) })
+
+    let remarks: string | undefined
+    let actionTaken: string | undefined
+    if (status === 'defective') {
+      remarks = pick(DEFECT_REMARKS)
+      images.push({ id: uid('img'), kind: 'defect', hue: 12, capturedAt: daysAgoISO(int(1, 15)), note: 'Damage / defect' })
+      lifecycle.push({ id: uid('al'), type: 'defective', title: 'Flagged defective', detail: remarks, actor: responsiblePerson, timestamp: daysAgoISO(int(1, 12)) })
+    } else if (status === 'discarded') {
+      remarks = pick(DEFECT_REMARKS)
+      images.push({ id: uid('img'), kind: 'defect', hue: 12, capturedAt: daysAgoISO(int(20, 60)), note: 'Condition before disposal' })
+      actionTaken = 'Approved for disposal'
+      lifecycle.push({ id: uid('al'), type: 'defective', title: 'Flagged defective', detail: remarks, actor: responsiblePerson, timestamp: daysAgoISO(int(40, 80)) })
+      lifecycle.push({ id: uid('al'), type: 'action', title: 'Admin action', detail: 'Reviewed image & remarks — approved for disposal', actor: 'A. Menon (Admin)', timestamp: daysAgoISO(int(20, 39)) })
+      lifecycle.push({ id: uid('al'), type: 'discarded', title: 'Discarded', detail: 'Removed from the active register', actor: 'A. Menon (Admin)', timestamp: daysAgoISO(int(1, 19)) })
+    } else if (chance(0.35)) {
+      remarks = pick(OK_REMARKS)
+    }
+
+    lifecycle.sort((a, b) => +new Date(a.timestamp) - +new Date(b.timestamp))
     out.push({
-      id: uid('ast'),
-      tag,
-      categoryId: cat.id,
-      name: `${brand} ${model}`,
-      brand,
-      model,
-      serialNumber: `${brand.slice(0, 2).toUpperCase()}${int(100000, 999999)}${pick(['A', 'B', 'C', 'X'])}`,
-      purchaseDate: daysAgoISO(purchaseDaysAgo),
-      purchaseValue: assetValue(cat.id),
-      supplier: pick(SUPPLIERS),
-      warrantyUntil: daysFromNowISO(int(-200, 700)),
-      officeId,
-      floorId,
-      room,
-      custodianId: custodian.id,
-      department: pick(DEPARTMENTS).name,
-      condition,
-      status,
-      lastVerifiedAt: lastVerified,
-      nextVerificationDue: overdue ? daysAgoISO(int(1, 12)) : daysFromNowISO(int(1, 26)),
-      photos,
-      timeline,
-      flagged:
-        condition === 'damaged' && chance(0.5)
-          ? 'Condition mismatch flagged at last verification'
-          : overdue && chance(0.4)
-            ? 'Verification overdue'
-            : undefined,
+      id: uid('ast'), assetId, category: cat.id, subcategory, name,
+      assignedEmployeeId: assignedEmployee?.id, officeId, location, responsiblePerson,
+      status, remarks, deploymentDate: daysAgoISO(deployDaysAgo), images, actionTaken, lifecycle,
     })
   }
-  return out
-}
-
-function assetValue(cat: string) {
-  const base: Record<string, [number, number]> = {
-    monitor: [18000, 65000], laptop: [70000, 240000], chair: [9000, 95000], desk: [12000, 45000],
-    ac: [32000, 90000], printer: [25000, 180000], projector: [90000, 340000], switch: [45000, 220000],
-  }
-  const [lo, hi] = base[cat] ?? [10000, 50000]
-  return Math.round((lo + rand() * (hi - lo)) / 500) * 500
-}
-
-function buildTimeline(tag: string, brand: string, condition: AssetCondition, purchaseDaysAgo: number, custodian: string) {
-  const t = []
-  t.push({ id: uid('tl'), type: 'onboarded' as const, title: 'Asset onboarded', detail: `Registered & QR-tagged (${tag})`, actor: 'A. Menon (Admin)', timestamp: daysAgoISO(purchaseDaysAgo - 2), condition: 'new' as AssetCondition })
-  if (chance(0.5)) t.push({ id: uid('tl'), type: 'custodian-change' as const, title: 'Custodian assigned', detail: `Handed over to ${custodian}`, actor: 'A. Menon (Admin)', timestamp: daysAgoISO(int(200, purchaseDaysAgo - 5)) })
-  if (chance(0.6)) t.push({ id: uid('tl'), type: 'moved' as const, title: 'Relocated', detail: 'Moved between zones — receipt scan confirmed', actor: 'S. Fernandes (Admin)', timestamp: daysAgoISO(int(60, 200)) })
-  if (chance(0.8)) t.push({ id: uid('tl'), type: 'verified' as const, title: 'Monthly verification', detail: 'AI-assisted condition check confirmed by Admin', actor: 'System · AI assist', timestamp: daysAgoISO(int(20, 60)), condition: condition === 'new' ? 'good' : condition, ai: true })
-  if (condition === 'damaged' || condition === 'beyond-repair') t.push({ id: uid('tl'), type: 'flagged' as const, title: 'Condition downgraded', detail: `Marked ${condition.replace('-', ' ')} — repair/replace review`, actor: 'A. Menon (Admin)', timestamp: daysAgoISO(int(5, 25)), condition })
-  return t.sort((a, b) => +new Date(a.timestamp) - +new Date(b.timestamp))
-}
-
-function makeMovements(assets: Asset[]): MovementRequest[] {
-  const stages: MovementRequest['stage'][] = ['requested', 'ai-review', 'approved', 'in-transit', 'received', 'received']
-  const out: MovementRequest[] = []
-  const pool = [...assets].sort(() => rand() - 0.5).slice(0, 6)
-  pool.forEach((a, i) => {
-    const stage = stages[i]
-    const ai: AssetCondition = pick(['good', 'good', 'fair', 'damaged'])
-    out.push({
-      id: uid('mov'),
-      assetId: a.id,
-      assetTag: a.tag,
-      assetName: a.name,
-      fromOfficeId: a.officeId,
-      fromRoom: a.room,
-      toOfficeId: pick(['hq', 'mum', 'blr']),
-      toRoom: pick(['Tech Innovation', 'Server Room', 'Store', 'Conference Room']),
-      reason: pick(['Team relocation', 'Repair at central facility', 'Reallocation to project', 'Office refresh']),
-      requestedBy: pick(MANAGERS),
-      approver: 'A. Menon (Admin)',
-      expectedDate: daysFromNowISO(int(1, 9)),
-      stage,
-      aiCondition: stage === 'requested' ? undefined : ai,
-      aiConfidence: stage === 'requested' ? undefined : int(72, 97),
-      humanCondition: stage === 'approved' || stage === 'in-transit' || stage === 'received' ? ai : undefined,
-      createdAt: daysAgoISO(int(1, 14)),
-      updatedAt: daysAgoISO(int(0, 3)),
-    })
-  })
-  return out
-}
-
-function makeVerifications(assets: Asset[]): VerificationTask[] {
-  const out: VerificationTask[] = []
-  const pool = [...assets].sort(() => rand() - 0.5).slice(0, 16)
-  pool.forEach((a, i) => {
-    const overdue = i < 4
-    const done = i >= 4 && i < 9
-    out.push({
-      id: uid('ver'),
-      assetId: a.id,
-      assetTag: a.tag,
-      assetName: a.name,
-      officeId: a.officeId,
-      dueDate: overdue ? daysAgoISO(int(1, 10)) : daysFromNowISO(int(0, 20)),
-      status: overdue ? 'overdue' : done ? 'completed' : 'pending',
-      priorCondition: a.condition === 'new' ? 'good' : a.condition,
-      aiCondition: done ? a.condition : undefined,
-      aiConfidence: done ? int(78, 96) : undefined,
-      humanDecision: done ? pick(['accepted', 'accepted', 'accepted-remark', 'flag-repair']) : undefined,
-      completedAt: done ? daysAgoISO(int(1, 20)) : undefined,
-    })
-  })
   return out
 }
 
 function makeNotifications(): Notification[] {
   const base: Omit<Notification, 'id' | 'timestamp'>[] = [
-    { kind: 'verification', title: 'Verification overdue', body: '4 assets at Aster HQ are past their monthly check.', read: false, tone: 'warning' },
-    { kind: 'movement', title: 'Movement awaiting approval', body: 'AST-LAP-0146 · Team relocation to South Tech Center.', read: false, tone: 'info' },
+    { kind: 'asset', title: 'Asset flagged defective', body: 'RDA-LAP-0146 reported defective — image & remarks awaiting Admin review.', read: false, tone: 'warning' },
     { kind: 'seat', title: '5 seats freeing up soon', body: 'Employees on notice vacate within 30 days.', read: false, tone: 'info' },
-    { kind: 'asset', title: 'Condition downgraded', body: 'AST-CHA-0151 marked Damaged after AI review.', read: true, tone: 'danger' },
+    { kind: 'asset', title: 'Asset deployed', body: 'RDA-MON-0142 assigned and deployment image captured.', read: true, tone: 'success' },
     { kind: 'seat', title: 'New joiners awaiting seats', body: '6 new joiners not yet allocated a seat.', read: true, tone: 'warning' },
-    { kind: 'movement', title: 'Asset received', body: 'AST-MON-0142 receipt-scanned at West Regional Office.', read: true, tone: 'success' },
-    { kind: 'system', title: 'Monthly cycle generated', body: '16 verification tasks created for August.', read: true, tone: 'info' },
+    { kind: 'asset', title: 'Disposal approved', body: 'RDA-CHA-0151 approved for disposal after Admin review.', read: true, tone: 'info' },
+    { kind: 'system', title: 'Asset register updated', body: '44 assets tracked across three categories.', read: true, tone: 'info' },
   ]
   return base.map((b, i) => ({ ...b, id: uid('ntf'), timestamp: daysAgoISO(i * 0.4 + rand()) }))
 }
@@ -537,8 +462,6 @@ export function buildSeed(): SeedData {
   const employees = makeEmployees(208)
   const { seats, events } = buildSeatsAndAssign(employees)
   const assets = makeAssets(employees)
-  const movements = makeMovements(assets)
-  const verifications = makeVerifications(assets)
   const notifications = makeNotifications()
   const meetingRooms = makeMeetingRooms()
   const meetingBookings = makeMeetingBookings(meetingRooms, employees)
@@ -552,8 +475,6 @@ export function buildSeed(): SeedData {
     seatEvents: events,
     categories: CATEGORIES,
     assets,
-    movements,
-    verifications,
     notifications,
     meetingRooms,
     meetingBookings,

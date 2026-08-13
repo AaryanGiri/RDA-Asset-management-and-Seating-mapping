@@ -3,8 +3,8 @@ import { AnimatePresence, motion } from 'framer-motion'
 import { createPortal } from 'react-dom'
 import { useNavigate } from 'react-router-dom'
 import {
-  Search, Map, Users, Boxes, LayoutDashboard, ArrowLeftRight, ShieldCheck,
-  BarChart3, QrCode, CornerDownLeft, Package, Armchair,
+  Search, Map, Users, Boxes, LayoutDashboard,
+  BarChart3, CornerDownLeft, Package, Armchair, Inbox, CalendarClock,
 } from 'lucide-react'
 import { useData, deptName } from '@/lib/store'
 import { useUI } from '@/lib/uiStore'
@@ -34,14 +34,13 @@ export function CommandPalette() {
   const go = (path: string) => { nav(path); close() }
 
   const navCommands: Cmd[] = [
-    { id: 'nav-dash', label: 'Executive Dashboard', icon: LayoutDashboard, group: 'Navigate', run: () => go('/') },
+    { id: 'nav-dash', label: 'Dashboard', icon: LayoutDashboard, group: 'Navigate', run: () => go('/') },
     { id: 'nav-map', label: 'Floor Map', icon: Map, group: 'Navigate', run: () => go('/seating') },
     { id: 'nav-dir', label: 'Employee Locator', icon: Users, group: 'Navigate', run: () => go('/directory') },
+    { id: 'nav-req', label: 'Seat Requests', icon: Inbox, group: 'Navigate', run: () => go('/requests') },
+    { id: 'nav-mr', label: 'Meeting Rooms', icon: CalendarClock, group: 'Navigate', run: () => go('/meeting-rooms') },
     { id: 'nav-seat-an', label: 'Seating Analytics', icon: BarChart3, group: 'Navigate', run: () => go('/seating-analytics') },
     { id: 'nav-assets', label: 'Asset Register', icon: Boxes, group: 'Navigate', run: () => go('/assets') },
-    { id: 'nav-move', label: 'Asset Movements', icon: ArrowLeftRight, group: 'Navigate', run: () => go('/movements') },
-    { id: 'nav-verif', label: 'Verification Queue', icon: ShieldCheck, group: 'Navigate', run: () => go('/verification') },
-    { id: 'nav-scan', label: 'Scan to Open', icon: QrCode, group: 'Navigate', run: () => go('/scan') },
   ]
 
   const results = useMemo(() => {
@@ -70,8 +69,8 @@ export function CommandPalette() {
     }
     // assets
     for (const a of assets) {
-      if (`${a.tag} ${a.name} ${a.serialNumber} ${a.room}`.toLowerCase().includes(query)) {
-        out.push({ id: `ast-${a.id}`, label: a.name, sub: `${a.tag} · ${a.room}`, icon: Package, group: 'Assets', run: () => go(`/assets/${a.id}`) })
+      if (`${a.assetId} ${a.name} ${a.subcategory} ${a.location ?? ''}`.toLowerCase().includes(query)) {
+        out.push({ id: `ast-${a.id}`, label: a.name, sub: `${a.assetId} · ${a.subcategory}`, icon: Package, group: 'Assets', run: () => go(`/assets/${a.id}`) })
       }
       if (out.filter((o) => o.group === 'Assets').length >= 6) break
     }

@@ -4,22 +4,23 @@ import {
   PieChart, Pie, Cell, ResponsiveContainer, BarChart, Bar, XAxis, Tooltip, CartesianGrid,
 } from 'recharts'
 import {
-  Map, Boxes, TrendingUp, ShieldCheck, ArrowLeftRight, ArrowUpRight, CalendarClock,
-  UserX, AlertTriangle, Sparkles, QrCode, Users2, Activity, ChevronRight, Package, Clock, Check,
+  Map, Boxes, TrendingUp, ArrowUpRight, CalendarClock, Inbox,
+  UserX, AlertTriangle, Sparkles, Users2, ChevronRight, Package, Layers,
 } from 'lucide-react'
 import { Page } from '@/components/Page'
-import { StatCard, Avatar, ConditionBadge } from '@/components/ui'
+import { StatCard, Avatar, AssetStatusBadge } from '@/components/ui'
+import { CategoryIcon } from '@/features/assets/assetUi'
 import { ChartCard, ChartTooltip } from '@/components/charts'
-import { useData, deptName, officeName } from '@/lib/store'
+import { useData, deptName } from '@/lib/store'
 import { roomAreaSqFt } from '@/features/seating/layout'
 import { useChart } from '@/lib/chart'
-import { CONDITION_META } from '@/lib/status'
+import { ASSET_CATEGORY_META } from '@/lib/status'
 import { useSimulatedLoad } from '@/hooks'
-import { cn, formatCurrency, relativeTime, daysBetween, formatDate } from '@/lib/utils'
-import type { AssetCondition } from '@/lib/types'
+import { cn, daysBetween, formatDate, relativeTime } from '@/lib/utils'
+import type { AssetPrimaryCategory } from '@/lib/types'
 
 export function DashboardPage() {
-  const { seats, employees, assets, movements, verifications, seatEvents, floors, floorPlans, offices } = useData()
+  const { seats, employees, assets, seatRequests, seatEvents, floors, floorPlans, offices } = useData()
   const c = useChart()
   const nav = useNavigate()
   const loading = useSimulatedLoad(420)
@@ -29,11 +30,8 @@ export function DashboardPage() {
   const occRate = Math.round((occupied / totalSeats) * 100)
   const notice = seats.filter((s) => s.status === 'notice').length
   const unseated = employees.filter((e) => !e.currentSeatId).length
-  const registerValue = assets.reduce((s, a) => s + a.purchaseValue, 0)
-  const overdueVerif = verifications.filter((v) => v.status === 'overdue').length
-  const openMoves = movements.filter((m) => m.stage !== 'received' && m.stage !== 'rejected').length
-  const flagged = assets.filter((a) => a.flagged).length
-  const compliance = Math.round((verifications.filter((v) => v.status === 'completed').length / verifications.length) * 100)
+  const defective = assets.filter((a) => a.status === 'defective')
+  const pendingReq = seatRequests.filter((r) => r.status === 'pending').length
 
   const builtUpArea = Math.round(
     Object.values(floorPlans).reduce((sum, p) => {
@@ -56,9 +54,9 @@ export function DashboardPage() {
     }
   })
 
-  const condOrder: AssetCondition[] = ['new', 'good', 'fair', 'damaged', 'beyond-repair']
-  const condColor: Record<AssetCondition, string> = { new: c.vacant, good: c.notice, fair: c.maint, damaged: c.occupied, 'beyond-repair': c.blocked }
-  const byCondition = condOrder.map((cd) => ({ name: CONDITION_META[cd].label, value: assets.filter((a) => a.condition === cd).length, color: condColor[cd] })).filter((d) => d.value > 0)
+  const catOrder: AssetPrimaryCategory[] = ['tangible', 'intangible', 'land-building']
+  const catColor: Record<AssetPrimaryCategory, string> = { tangible: c.notice, intangible: c.vacant, 'land-building': c.maint }
+  const byCategory = catOrder.map((cd) => ({ name: ASSET_CATEGORY_META[cd].short, value: assets.filter((a) => a.category === cd).length, color: catColor[cd] })).filter((d) => d.value > 0)
 
   const upcoming = employees
     .filter((e) => e.employmentStatus === 'notice' && e.lastWorkingDay)
@@ -70,13 +68,12 @@ export function DashboardPage() {
       id: e.id, kind: 'seat' as const, title: `Seat ${e.seatNumber} ${e.type.replace('-', ' ')}`,
       detail: e.employeeName ? `${e.employeeName} · ${e.reason}` : e.reason, time: e.timestamp, link: `/seating?seat=${e.seatId}`,
     }))
-    const assetItems = assets.flatMap((a) => a.timeline.slice(-1).map((t) => ({
-      id: t.id, kind: 'asset' as const, title: `${a.tag} · ${t.title}`, detail: t.detail, time: t.timestamp, link: `/assets/${a.id}`,
+    const assetItems = assets.flatMap((a) => a.lifecycle.slice(-1).map((t) => ({
+      id: t.id, kind: 'asset' as const, title: `${a.assetId} · ${t.title}`, detail: t.detail, time: t.timestamp, link: `/assets/${a.id}`,
     })))
     return [...seatItems, ...assetItems].sort((a, b) => +new Date(b.time) - +new Date(a.time)).slice(0, 8)
   }, [seatEvents, assets])
 
-  const activeMoves = movements.filter((m) => m.stage !== 'received' && m.stage !== 'rejected').slice(0, 4)
   const greeting = new Date().getHours() < 12 ? 'Good morning' : new Date().getHours() < 18 ? 'Good afternoon' : 'Good evening'
 
   return (
@@ -93,7 +90,7 @@ export function DashboardPage() {
           </div>
           <div className="flex flex-wrap gap-2">
             <Link to="/seating" className="btn-secondary"><Map className="h-4 w-4" /> Floor map</Link>
-            <Link to="/scan" className="btn-secondary"><QrCode className="h-4 w-4" /> Scan asset</Link>
+            <Link to="/requests" className="btn-secondary"><Inbox className="h-4 w-4" /> Seat requests</Link>
             <Link to="/assets" className="btn-primary"><Boxes className="h-4 w-4" /> Asset register</Link>
           </div>
         </div>
@@ -102,9 +99,9 @@ export function DashboardPage() {
       {/* KPI row */}
       <div className="mb-4 grid grid-cols-2 gap-3 lg:grid-cols-4">
         <StatCard label="Seat occupancy" value={`${occRate}%`} icon={<TrendingUp className="h-5 w-5" />} accent="brand" sub={`${occupied}/${totalSeats} seats`} delta={{ value: '3.2%', up: true }} />
-        <StatCard label="Tagged assets" value={assets.length} icon={<Boxes className="h-5 w-5" />} accent="notice" sub={formatCurrency(registerValue)} />
-        <StatCard label="Verification" value={`${compliance}%`} icon={<ShieldCheck className="h-5 w-5" />} accent="vacant" sub={`${overdueVerif} overdue`} />
-        <StatCard label="Open movements" value={openMoves} icon={<ArrowLeftRight className="h-5 w-5" />} accent="maint" sub={`${flagged} flagged assets`} />
+        <StatCard label="Total assets" value={assets.length} icon={<Boxes className="h-5 w-5" />} accent="notice" sub="across 3 categories" />
+        <StatCard label="Defective assets" value={defective.length} icon={<AlertTriangle className="h-5 w-5" />} accent="maint" sub="awaiting Admin action" />
+        <StatCard label="Pending seat requests" value={pendingReq} icon={<Inbox className="h-5 w-5" />} accent="vacant" sub="to review" />
       </div>
 
       {/* module split */}
@@ -134,24 +131,23 @@ export function DashboardPage() {
         {/* Attention needed */}
         <ChartCard title="Attention needed" subtitle="Exceptions across both modules">
           <div className="space-y-2">
-            <AttentionRow icon={AlertTriangle} tone="occupied" label="Overdue verifications" value={overdueVerif} onClick={() => nav('/verification')} />
-            <AttentionRow icon={ShieldCheck} tone="maint" label="Flagged assets" value={flagged} onClick={() => nav('/assets')} />
+            <AttentionRow icon={AlertTriangle} tone="maint" label="Defective assets to review" value={defective.length} onClick={() => nav('/assets')} />
+            <AttentionRow icon={Inbox} tone="brand" label="Pending seat requests" value={pendingReq} onClick={() => nav('/requests')} />
             <AttentionRow icon={UserX} tone="notice" label="Employees without a seat" value={unseated} onClick={() => nav('/directory')} />
             <AttentionRow icon={CalendarClock} tone="notice" label="Seats freeing in 30 days" value={notice} onClick={() => nav('/seating-analytics')} />
-            <AttentionRow icon={ArrowLeftRight} tone="brand" label="Movements in progress" value={openMoves} onClick={() => nav('/movements')} />
           </div>
         </ChartCard>
       </div>
 
       {/* second row */}
       <div className="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-3">
-        {/* asset condition */}
-        <ChartCard title="Asset condition" subtitle={`${assets.length} tagged items`} action={<Link to="/asset-analytics" className="flex items-center gap-1 text-xs font-medium text-brand hover:underline">Analytics <ArrowUpRight className="h-3.5 w-3.5" /></Link>}>
+        {/* assets by category */}
+        <ChartCard title="Assets by category" subtitle={`${assets.length} items`} action={<Link to="/assets" className="flex items-center gap-1 text-xs font-medium text-brand hover:underline">Register <ArrowUpRight className="h-3.5 w-3.5" /></Link>}>
           <div className="relative">
             <ResponsiveContainer width="100%" height={170}>
               <PieChart>
-                <Pie data={byCondition} dataKey="value" nameKey="name" innerRadius={48} outerRadius={72} paddingAngle={2} strokeWidth={0}>
-                  {byCondition.map((d, i) => <Cell key={i} fill={d.color} />)}
+                <Pie data={byCategory} dataKey="value" nameKey="name" innerRadius={48} outerRadius={72} paddingAngle={2} strokeWidth={0}>
+                  {byCategory.map((d, i) => <Cell key={i} fill={d.color} />)}
                 </Pie>
                 <Tooltip content={<ChartTooltip tooltipBg={c.tooltipBg} border={c.border} />} />
               </PieChart>
@@ -161,8 +157,8 @@ export function DashboardPage() {
               <span className="text-2xs text-muted">assets</span>
             </div>
           </div>
-          <div className="mt-1 grid grid-cols-2 gap-x-3 gap-y-1">
-            {byCondition.map((d) => (
+          <div className="mt-1 grid grid-cols-1 gap-x-3 gap-y-1">
+            {byCategory.map((d) => (
               <div key={d.name} className="flex items-center gap-1.5 text-2xs">
                 <span className="h-2 w-2 rounded-sm" style={{ background: d.color }} />
                 <span className="text-muted">{d.name}</span><span className="ml-auto font-semibold text-content">{d.value}</span>
@@ -171,20 +167,20 @@ export function DashboardPage() {
           </div>
         </ChartCard>
 
-        {/* movements in progress */}
-        <ChartCard title="Movements in progress" subtitle="Governed asset transfers" action={<Link to="/movements" className="flex items-center gap-1 text-xs font-medium text-brand hover:underline">Board <ArrowUpRight className="h-3.5 w-3.5" /></Link>}>
-          {activeMoves.length === 0 ? (
-            <p className="py-8 text-center text-sm text-subtle">No active movements.</p>
+        {/* assets needing action */}
+        <ChartCard title="Assets needing action" subtitle="Defective — awaiting Admin decision" action={<Link to="/assets" className="flex items-center gap-1 text-xs font-medium text-brand hover:underline">Register <ArrowUpRight className="h-3.5 w-3.5" /></Link>}>
+          {defective.length === 0 ? (
+            <p className="py-8 text-center text-sm text-subtle">No defective assets. 🎉</p>
           ) : (
             <div className="space-y-2">
-              {activeMoves.map((m) => (
-                <button key={m.id} onClick={() => nav(`/assets/${m.assetId}`)} className="flex w-full items-center gap-3 rounded-xl border border-border p-2.5 text-left transition-colors hover:bg-surface-2">
-                  <div className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-surface-2 text-muted"><Package className="h-4 w-4" /></div>
+              {defective.slice(0, 4).map((a) => (
+                <button key={a.id} onClick={() => nav(`/assets/${a.id}`)} className="flex w-full items-center gap-3 rounded-xl border border-border p-2.5 text-left transition-colors hover:bg-surface-2">
+                  <div className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-maint-soft text-maint"><CategoryIcon subcategory={a.subcategory} category={a.category} className="h-4 w-4" /></div>
                   <div className="min-w-0 flex-1">
-                    <p className="truncate text-xs font-semibold text-content">{m.assetName}</p>
-                    <p className="truncate text-2xs text-muted">{m.fromRoom} → {m.toRoom}</p>
+                    <p className="truncate text-xs font-semibold text-content">{a.name}</p>
+                    <p className="truncate text-2xs text-muted">{a.assetId} · {a.remarks ?? 'Defective'}</p>
                   </div>
-                  <span className="chip bg-brand-soft px-2 py-0.5 text-2xs capitalize text-brand">{m.stage.replace('-', ' ')}</span>
+                  <AssetStatusBadge status={a.status} />
                 </button>
               ))}
             </div>

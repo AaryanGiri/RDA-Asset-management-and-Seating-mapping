@@ -1,4 +1,4 @@
-import type { AssetCondition, AssetStatus, MeetingRoomStatus, RequestStatus, SeatStatus } from './types'
+import type { AssetPrimaryCategory, AssetStatus, MeetingRoomStatus, RequestStatus, SeatStatus } from './types'
 
 export interface StatusMeta {
   label: string
@@ -21,20 +21,17 @@ export const SEAT_STATUS: Record<SeatStatus, StatusMeta> = {
 
 export const SEAT_ORDER: SeatStatus[] = ['occupied', 'vacant', 'notice', 'maintenance', 'blocked']
 
-export const CONDITION_META: Record<AssetCondition, { label: string; text: string; bg: string; dot: string; score: number }> = {
-  new: { label: 'New', text: 'text-vacant', bg: 'bg-vacant-soft', dot: 'bg-vacant', score: 100 },
-  good: { label: 'Good', text: 'text-notice', bg: 'bg-notice-soft', dot: 'bg-notice', score: 78 },
-  fair: { label: 'Fair', text: 'text-maint', bg: 'bg-maint-soft', dot: 'bg-maint', score: 52 },
-  damaged: { label: 'Damaged', text: 'text-occupied', bg: 'bg-occupied-soft', dot: 'bg-occupied', score: 26 },
-  'beyond-repair': { label: 'Beyond Repair', text: 'text-occupied', bg: 'bg-occupied-soft', dot: 'bg-occupied', score: 8 },
-}
-
 export const ASSET_STATUS_META: Record<AssetStatus, { label: string; text: string; bg: string; dot: string }> = {
   'in-use': { label: 'In Use', text: 'text-vacant', bg: 'bg-vacant-soft', dot: 'bg-vacant' },
-  'in-transit': { label: 'In Transit', text: 'text-notice', bg: 'bg-notice-soft', dot: 'bg-notice' },
-  'under-repair': { label: 'Under Repair', text: 'text-maint', bg: 'bg-maint-soft', dot: 'bg-maint' },
-  'in-storage': { label: 'In Storage', text: 'text-blocked', bg: 'bg-blocked-soft', dot: 'bg-blocked' },
-  disposed: { label: 'Disposed', text: 'text-occupied', bg: 'bg-occupied-soft', dot: 'bg-occupied' },
+  'in-storage': { label: 'In Storage', text: 'text-notice', bg: 'bg-notice-soft', dot: 'bg-notice' },
+  defective: { label: 'Defective', text: 'text-maint', bg: 'bg-maint-soft', dot: 'bg-maint' },
+  discarded: { label: 'Discarded', text: 'text-blocked', bg: 'bg-blocked-soft', dot: 'bg-blocked' },
+}
+
+export const ASSET_CATEGORY_META: Record<AssetPrimaryCategory, { label: string; short: string; accent: string }> = {
+  tangible: { label: 'Tangible Assets', short: 'Tangible', accent: 'brand' },
+  intangible: { label: 'Intangible Assets', short: 'Intangible', accent: 'notice' },
+  'land-building': { label: 'Land & Building', short: 'Land & Building', accent: 'vacant' },
 }
 
 export const REQUEST_STATUS_META: Record<RequestStatus, { label: string; text: string; bg: string; dot: string }> = {
