@@ -405,6 +405,7 @@ export function FloorCanvas({
           <FloorSVG
             plan={plan}
             seats={seats}
+            editing={editing}
             hoveredRoomId={roomHover?.room.id ?? null}
             onRoomHover={(room, e) => (editing ? null : setRoomHover(room && e ? { room, x: e.clientX, y: e.clientY } : null))}
           />

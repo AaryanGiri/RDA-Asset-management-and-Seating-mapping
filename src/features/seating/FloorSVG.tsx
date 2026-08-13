@@ -222,33 +222,92 @@ export function FurnitureGlyph({ item }: { item: FurnitureItem }) {
   )
 }
 
+// One room cell — reused by the vector floors and as an editable overlay on the
+// image-backed floors (where `translucent` lets the real drawing show through).
+function RoomCell({
+  r, hovered, translucent, onRoomHover,
+}: {
+  r: RoomShape
+  hovered: boolean
+  translucent?: boolean
+  onRoomHover?: (room: RoomShape | null, e?: React.PointerEvent) => void
+}) {
+  return (
+    <g
+      onPointerEnter={(e) => onRoomHover?.(r, e)}
+      onPointerMove={(e) => onRoomHover?.(r, e)}
+      onPointerLeave={() => onRoomHover?.(null)}
+      style={{ cursor: 'default' }}
+    >
+      <rect
+        x={r.x} y={r.y} width={r.w} height={r.h} rx={4}
+        style={{ fill: roomFill[r.kind] ?? 'rgb(var(--c-surface))', stroke: WALL }}
+        strokeWidth={2.4}
+        fillOpacity={translucent ? 0.5 : 1}
+      />
+      {hovered && (
+        <rect x={r.x} y={r.y} width={r.w} height={r.h} rx={4} style={{ fill: 'rgb(var(--c-brand))', pointerEvents: 'none' }} opacity={0.12} />
+      )}
+      {r.kind === 'courtyard' && <Courtyard room={r} />}
+      {(r.kind === 'meeting' || r.kind === 'collab') && r.chairs && <MeetingTable room={r} />}
+      {r.kind === 'training' && <TrainingRoom room={r} />}
+      {r.kind === 'office' && <ExecOffice room={r} />}
+      {r.kind === 'cabin' && r.w < 120 && r.h < 130 && <CabinDesk room={r} />}
+      <text x={r.x + 8} y={r.y + 17} style={{ fill: 'rgb(var(--c-text))', pointerEvents: 'none' }} fontSize={Math.max(8, Math.min(13, (r.w - 12) / (r.label.length * 0.56)))} fontWeight={650} className="font-sans">
+        {r.label}
+      </text>
+      {r.sub && r.h >= 40 && (
+        <text x={r.x + 8} y={r.y + 31} style={{ fill: 'rgb(var(--c-text-subtle))', pointerEvents: 'none' }} fontSize={Math.max(7, Math.min(10, (r.w - 12) / (r.sub.length * 0.52)))} className="font-sans">
+          {r.sub}
+        </text>
+      )}
+    </g>
+  )
+}
+
 export function FloorSVG({
   plan,
   seats,
   hoveredRoomId,
   onRoomHover,
+  editing = false,
 }: {
   plan: FloorPlan
   seats: Seat[]
   hoveredRoomId?: string | null
   onRoomHover?: (room: RoomShape | null, e?: React.PointerEvent) => void
+  editing?: boolean
 }) {
   const workstations = seats.filter((s) => s.seatType === 'workstation')
   const plate = plan.plate ?? { x: 2, y: 2, w: plan.vbw - 4, h: plan.vbh - 4 }
 
-  // Image-backed floor: render the real architectural drawing as the map.
-  // Seat markers are drawn separately by FloorCanvas over this.
+  // Image-backed floor: the real architectural drawing is the map. Any rooms /
+  // walls / doors / furniture the user draws in the editor render on top of it,
+  // so the whole floor is buildable from the frontend while the exact drawing
+  // stays as a reference (dimmed slightly in edit mode so overlays stand out).
+  // Seat markers are drawn separately by FloorCanvas above this.
   if (plan.bg) {
     const href = `${import.meta.env.BASE_URL}${plan.bg.src}`
     return (
       <svg viewBox={`0 0 ${plan.vbw} ${plan.vbh}`} width={plan.vbw} height={plan.vbh} className="select-none">
         <defs>
+          <pattern id="hatch" width="8" height="8" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
+            <line x1="0" y1="0" x2="0" y2="8" style={{ stroke: WALL_IN }} strokeWidth="1" opacity="0.5" />
+          </pattern>
           <filter id="plateShadow" x="-4%" y="-4%" width="108%" height="112%">
             <feDropShadow dx="0" dy="10" stdDeviation="18" floodColor="#000" floodOpacity="0.16" />
           </filter>
         </defs>
         <rect x={0} y={0} width={plan.vbw} height={plan.vbh} rx={10} style={{ fill: '#fff' }} filter="url(#plateShadow)" />
-        <image href={href} x={0} y={0} width={plan.vbw} height={plan.vbh} preserveAspectRatio="xMidYMid meet" />
+        <image href={href} x={0} y={0} width={plan.vbw} height={plan.vbh} preserveAspectRatio="xMidYMid meet" opacity={editing ? 0.5 : 1} />
+
+        {/* editable structure drawn over the reference drawing */}
+        {plan.rooms.map((r) => (
+          <RoomCell key={r.id} r={r} hovered={hoveredRoomId === r.id} translucent onRoomHover={onRoomHover} />
+        ))}
+        {plan.walls.map((w) => <WallSeg key={w.id} wall={w} ppf={plan.pxPerFoot} />)}
+        {plan.furniture.map((f) => <FurnitureGlyph key={f.id} item={f} />)}
+        {plan.doors.map((d) => <DoorGlyph key={d.id} door={d} />)}
       </svg>
     )
   }
@@ -285,40 +344,9 @@ export function FloorSVG({
       ))}
 
       {/* rooms */}
-      {plan.rooms.map((r) => {
-        const hovered = hoveredRoomId === r.id
-        return (
-          <g
-            key={r.id}
-            onPointerEnter={(e) => onRoomHover?.(r, e)}
-            onPointerMove={(e) => onRoomHover?.(r, e)}
-            onPointerLeave={() => onRoomHover?.(null)}
-            style={{ cursor: 'default' }}
-          >
-            <rect
-              x={r.x} y={r.y} width={r.w} height={r.h} rx={4}
-              style={{ fill: roomFill[r.kind] ?? 'rgb(var(--c-surface))', stroke: WALL }}
-              strokeWidth={2.4}
-            />
-            {hovered && (
-              <rect x={r.x} y={r.y} width={r.w} height={r.h} rx={4} style={{ fill: 'rgb(var(--c-brand))', pointerEvents: 'none' }} opacity={0.12} />
-            )}
-            {r.kind === 'courtyard' && <Courtyard room={r} />}
-            {(r.kind === 'meeting' || r.kind === 'collab') && r.chairs && <MeetingTable room={r} />}
-            {r.kind === 'training' && <TrainingRoom room={r} />}
-            {r.kind === 'office' && <ExecOffice room={r} />}
-            {r.kind === 'cabin' && r.w < 120 && r.h < 130 && <CabinDesk room={r} />}
-            <text x={r.x + 8} y={r.y + 17} style={{ fill: 'rgb(var(--c-text))', pointerEvents: 'none' }} fontSize={Math.max(8, Math.min(13, (r.w - 12) / (r.label.length * 0.56)))} fontWeight={650} className="font-sans">
-              {r.label}
-            </text>
-            {r.sub && r.h >= 40 && (
-              <text x={r.x + 8} y={r.y + 31} style={{ fill: 'rgb(var(--c-text-subtle))', pointerEvents: 'none' }} fontSize={Math.max(7, Math.min(10, (r.w - 12) / (r.sub.length * 0.52)))} className="font-sans">
-                {r.sub}
-              </text>
-            )}
-          </g>
-        )
-      })}
+      {plan.rooms.map((r) => (
+        <RoomCell key={r.id} r={r} hovered={hoveredRoomId === r.id} onRoomHover={onRoomHover} />
+      ))}
 
       {/* typed partition walls */}
       {plan.walls.map((w) => <WallSeg key={w.id} wall={w} ppf={plan.pxPerFoot} />)}
