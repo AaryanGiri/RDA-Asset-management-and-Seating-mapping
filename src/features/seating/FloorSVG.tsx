@@ -236,6 +236,23 @@ export function FloorSVG({
   const workstations = seats.filter((s) => s.seatType === 'workstation')
   const plate = plan.plate ?? { x: 2, y: 2, w: plan.vbw - 4, h: plan.vbh - 4 }
 
+  // Image-backed floor: render the real architectural drawing as the map.
+  // Seat markers are drawn separately by FloorCanvas over this.
+  if (plan.bg) {
+    const href = `${import.meta.env.BASE_URL}${plan.bg.src}`
+    return (
+      <svg viewBox={`0 0 ${plan.vbw} ${plan.vbh}`} width={plan.vbw} height={plan.vbh} className="select-none">
+        <defs>
+          <filter id="plateShadow" x="-4%" y="-4%" width="108%" height="112%">
+            <feDropShadow dx="0" dy="10" stdDeviation="18" floodColor="#000" floodOpacity="0.16" />
+          </filter>
+        </defs>
+        <rect x={0} y={0} width={plan.vbw} height={plan.vbh} rx={10} style={{ fill: '#fff' }} filter="url(#plateShadow)" />
+        <image href={href} x={0} y={0} width={plan.vbw} height={plan.vbh} preserveAspectRatio="xMidYMid meet" />
+      </svg>
+    )
+  }
+
   return (
     <svg viewBox={`0 0 ${plan.vbw} ${plan.vbh}`} width={plan.vbw} height={plan.vbh} className="select-none">
       <defs>

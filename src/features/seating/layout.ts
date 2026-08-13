@@ -66,6 +66,8 @@ export interface FloorPlan {
   vbh: number
   pxPerFoot: number
   plate?: Rect
+  /** When set, the floor renders from a real drawing image instead of vector rooms. */
+  bg?: { src: string }
   rooms: RoomShape[]
   walls: Wall[]
   doors: Door[]
@@ -154,24 +156,27 @@ export function roomAreaSqFt(r: Rect, ppf: number): number {
 
 // ── seed: convert a static FloorGeometry into an editable FloorPlan ───────────
 // pxPerFoot is calibrated so displayed dimensions are plausible for each floor.
-const PLAN_SCALE: Record<string, number> = { f1: 6.6, f2: 9 }
+const PLAN_SCALE: Record<string, number> = { f1: 5.2, f2: 5.4 }
 const PLAN_META: Record<string, { officeId: string; name: string }> = {
-  f1: { officeId: 'hq', name: 'Level 3 · Corporate' },
-  f2: { officeId: 'hq', name: 'Level 5 · Studio' },
+  f1: { officeId: 'hq', name: 'Aga Khan Foundation · Office' },
+  f2: { officeId: 'hq', name: 'YMCA Building · New Delhi' },
 }
 
 export function geometryToPlan(geo: FloorGeometry): FloorPlan {
   const meta = PLAN_META[geo.id] ?? { officeId: 'hq', name: geo.id }
-  // cabin cells authored as `cabins` become editable cabin rooms so they're movable too
-  const cabinRooms: RoomShape[] = (geo.cabins ?? []).map((c) => ({
-    id: `cab-${c.seatNumber}`,
-    label: c.seatNumber,
-    kind: 'cabin' as RoomKind,
-    x: c.x,
-    y: c.y,
-    w: c.w,
-    h: c.h,
-  }))
+  // For image-backed floors the real drawing is the map — no vector rooms are
+  // synthesised (seats still overlay from fixedSeats, and stay editable).
+  const cabinRooms: RoomShape[] = geo.bg
+    ? []
+    : (geo.cabins ?? []).map((c) => ({
+        id: `cab-${c.seatNumber}`,
+        label: c.seatNumber,
+        kind: 'cabin' as RoomKind,
+        x: c.x,
+        y: c.y,
+        w: c.w,
+        h: c.h,
+      }))
   return {
     id: geo.id,
     officeId: meta.officeId,
@@ -180,13 +185,14 @@ export function geometryToPlan(geo: FloorGeometry): FloorPlan {
     vbh: geo.vbh,
     pxPerFoot: PLAN_SCALE[geo.id] ?? 8,
     plate: geo.plate ?? geo.slabRect,
-    rooms: [...geo.rooms.map((r) => ({ ...r })), ...cabinRooms],
+    bg: geo.bg ? { ...geo.bg } : undefined,
+    rooms: geo.bg ? [] : [...geo.rooms.map((r) => ({ ...r })), ...cabinRooms],
     walls: [],
     doors: [],
     furniture: [],
-    corridors: geo.corridors ? geo.corridors.map((c) => ({ ...c })) : undefined,
-    markers: geo.markers ? geo.markers.map((m) => ({ ...m })) : undefined,
-    zoneLabels: geo.zoneLabels ? geo.zoneLabels.map((z) => ({ ...z })) : undefined,
+    corridors: geo.bg || !geo.corridors ? undefined : geo.corridors.map((c) => ({ ...c })),
+    markers: geo.bg || !geo.markers ? undefined : geo.markers.map((m) => ({ ...m })),
+    zoneLabels: geo.bg || !geo.zoneLabels ? undefined : geo.zoneLabels.map((z) => ({ ...z })),
     markerR: geo.markerR,
   }
 }

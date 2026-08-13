@@ -445,11 +445,12 @@ export const useData = create<DataState>()(
     }),
     {
       name: 'locus.db',
-      version: 11,
-      // Older persisted states predate floorPlans; returning the persisted slice
-      // lets the shallow merge fill floorPlans from the fresh initial state while
-      // keeping the user's existing seats / assets / edits.
-      migrate: (persisted) => persisted as DataState,
+      version: 12,
+      // v12 replaces both floors with the real RODIC drawings (Aga Khan Foundation
+      // + YMCA), so the persisted seats / floors / floorPlans no longer match.
+      // Returning an empty slice lets the shallow merge rebuild everything from the
+      // fresh seed; users can still re-edit and their new edits persist as normal.
+      migrate: () => ({}) as DataState,
       partialize: (s) => ({
         offices: s.offices, floors: s.floors, departments: s.departments,
         employees: s.employees, seats: s.seats, seatEvents: s.seatEvents,

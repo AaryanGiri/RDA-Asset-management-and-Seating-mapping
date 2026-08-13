@@ -24,9 +24,12 @@ Build a static bundle with `npm run build` (output in `dist/`).
 ## What's inside
 
 **Module A — Interactive Seating & Workplace Map**
-- Two custom vector floor plans (Level 3 corporate, Level 5 studio) with a clean floor switcher.
-- Seats overlaid as markers using **normalized 0–1 coordinates** — pixel-perfect through
-  zoom / pan / resize. Scroll to zoom, drag to pan, fit-to-screen, zoom-to-seat on search.
+- Two real architectural floor plans rendered straight from the client's CAD drawings —
+  the **Aga Khan Foundation office** (AIWC, 144 workstations + 10 cabins) and the
+  **YMCA Building office** (88 workstations + 10 named cabins) — with a clean floor switcher.
+- Seats overlaid as markers using **normalized 0–1 coordinates** extracted from each PDF's
+  own text layer, so they stay pixel-perfect on the drawing through zoom / pan / resize.
+  Scroll to zoom, drag to pan, fit-to-screen, zoom-to-seat on search.
 - Five seat statuses (Vacant / Occupied / On Notice / Maintenance / Blocked), each with a
   colour **and** a non-colour glyph cue, plus an interactive legend.
 - Click a seat → detail panel (occupant, allocation history); hover → tooltip; search a
@@ -60,9 +63,13 @@ of simulated latency so it feels live. **Reset demo data** any time from the sid
 
 ## Notes for reviewers
 
-- The two source floor-plan drawings informed the structure; the map itself is redrawn as
-  crisp vector floors so seat markers align flawlessly and the screen reads as a designed
-  product rather than a CAD scan. *(The supplied `YMCA Floor Plan.pdf` was corrupt /
-  truncated and could not be opened; a complementary studio floor was designed in its place.)*
-- All data is seeded and in-memory — every screen is deliberately populated so nothing looks
-  empty. Actions persist across refresh via `localStorage`.
+- Both floors are rendered directly from the client's actual architect drawings —
+  `AIWC Floor Plan-21Aug25.pdf` (Office at Aga Khan Foundation) and `YMCA Floor Plan.pdf`
+  (Proposed office at YMCA Building, New Delhi). Each drawing is rasterised as the map
+  background (title block / legend / summary tables cropped out) and every seat marker is
+  placed at coordinates read from the PDF's own text layer, so the overlay is exact. To
+  regenerate from an updated PDF, re-run the pymupdf render/extract that writes
+  `public/floors/floorN.png` + `src/features/seating/floorNSeats.ts`.
+- All *people* data is seeded and in-memory (neutral placeholder names, not the real staff on
+  the drawings) — every screen is deliberately populated so nothing looks empty. Actions
+  persist across refresh via `localStorage`.

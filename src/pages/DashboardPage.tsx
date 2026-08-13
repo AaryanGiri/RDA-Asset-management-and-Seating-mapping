@@ -36,10 +36,14 @@ export function DashboardPage() {
   const compliance = Math.round((verifications.filter((v) => v.status === 'completed').length / verifications.length) * 100)
 
   const builtUpArea = Math.round(
-    Object.values(floorPlans).reduce(
-      (sum, p) => sum + p.rooms.reduce((a, r) => a + roomAreaSqFt(r, p.pxPerFoot), 0),
-      0,
-    ),
+    Object.values(floorPlans).reduce((sum, p) => {
+      // vector floors sum their room areas; image-backed floors (real drawings
+      // have no vector rooms) fall back to the floor-plate footprint.
+      const roomArea = p.rooms.reduce((a, r) => a + roomAreaSqFt(r, p.pxPerFoot), 0)
+      if (roomArea > 0) return sum + roomArea
+      const plate = p.plate ?? { x: 0, y: 0, w: p.vbw, h: p.vbh }
+      return sum + roomAreaSqFt(plate, p.pxPerFoot) * 0.72
+    }, 0),
   )
 
   const byFloor = floors.map((f) => {

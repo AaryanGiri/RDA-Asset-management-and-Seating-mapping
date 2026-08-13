@@ -44,8 +44,8 @@ export const OFFICES: Office[] = [
 ]
 
 export const FLOORS: Floor[] = [
-  { id: 'f1', officeId: 'hq', name: 'Level 3 · Corporate', level: 3, plan: 'f1', seatCount: 0 },
-  { id: 'f2', officeId: 'hq', name: 'Level 5 · Studio', level: 5, plan: 'f2', seatCount: 0 },
+  { id: 'f1', officeId: 'hq', name: 'Aga Khan Foundation · Office', level: 3, plan: 'f1', seatCount: 0 },
+  { id: 'f2', officeId: 'hq', name: 'YMCA Building · New Delhi', level: 1, plan: 'f2', seatCount: 0 },
 ]
 
 export const DEPARTMENTS: Department[] = [
@@ -255,8 +255,8 @@ const BRANDS: Record<string, [string, string][]> = {
 const SUPPLIERS = ['Redington Distribution', 'Ingram Micro', 'Compuage', 'Savex Technologies', 'Direct — OEM']
 const CONDITIONS: AssetCondition[] = ['new', 'good', 'good', 'good', 'fair', 'fair', 'damaged', 'beyond-repair']
 const STATUSES: AssetStatus[] = ['in-use', 'in-use', 'in-use', 'in-use', 'in-storage', 'under-repair']
-const ROOMS_F1 = ['North Bay', 'Central Bay', 'South Bay', 'Boardroom', 'Meeting Room A', 'Cabin C3', 'Store & Records', 'Training Room']
-const ROOMS_F2 = ['Studio East', 'Studio Core', 'Studio South', 'Kitchen & Breakout', 'Focus Rooms', 'Town Hall']
+const ROOMS_F1 = ['Tech Innovation', 'CMD Room', 'Meeting Room 1', 'Audio Visual Room', 'Cafe', 'Pantry', 'Store', 'Reception']
+const ROOMS_F2 = ['Conference Room', 'Server Room', 'Meeting Room', 'CEO Cabin', 'Director Cabin', 'R.Innovation Hub', 'Pantry', 'Reception']
 
 function makeAssets(employees: Employee[]): Asset[] {
   const out: Asset[] = []
@@ -351,7 +351,7 @@ function makeMovements(assets: Asset[]): MovementRequest[] {
       fromOfficeId: a.officeId,
       fromRoom: a.room,
       toOfficeId: pick(['hq', 'mum', 'blr']),
-      toRoom: pick(['North Bay', 'Studio Core', 'Store & Records', 'Meeting Room A']),
+      toRoom: pick(['Tech Innovation', 'Server Room', 'Store', 'Conference Room']),
       reason: pick(['Team relocation', 'Repair at central facility', 'Reallocation to project', 'Office refresh']),
       requestedBy: pick(MANAGERS),
       approver: 'A. Menon (Admin)',
@@ -405,7 +405,7 @@ function makeNotifications(): Notification[] {
 }
 
 export function buildSeed(): SeedData {
-  const employees = makeEmployees(98)
+  const employees = makeEmployees(208)
   const { seats, events } = buildSeatsAndAssign(employees)
   const assets = makeAssets(employees)
   const movements = makeMovements(assets)
