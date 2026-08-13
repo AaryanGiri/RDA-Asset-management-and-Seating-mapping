@@ -1,4 +1,4 @@
-import type { AssetCondition, AssetStatus, SeatStatus } from './types'
+import type { AssetCondition, AssetStatus, MeetingRoomStatus, RequestStatus, SeatStatus } from './types'
 
 export interface StatusMeta {
   label: string
@@ -35,4 +35,16 @@ export const ASSET_STATUS_META: Record<AssetStatus, { label: string; text: strin
   'under-repair': { label: 'Under Repair', text: 'text-maint', bg: 'bg-maint-soft', dot: 'bg-maint' },
   'in-storage': { label: 'In Storage', text: 'text-blocked', bg: 'bg-blocked-soft', dot: 'bg-blocked' },
   disposed: { label: 'Disposed', text: 'text-occupied', bg: 'bg-occupied-soft', dot: 'bg-occupied' },
+}
+
+export const REQUEST_STATUS_META: Record<RequestStatus, { label: string; text: string; bg: string; dot: string }> = {
+  pending: { label: 'Pending', text: 'text-notice', bg: 'bg-notice-soft', dot: 'bg-notice' },
+  approved: { label: 'Approved', text: 'text-vacant', bg: 'bg-vacant-soft', dot: 'bg-vacant' },
+  rejected: { label: 'Rejected', text: 'text-occupied', bg: 'bg-occupied-soft', dot: 'bg-occupied' },
+}
+
+export const MEETINGROOM_STATUS_META: Record<MeetingRoomStatus, { label: string; text: string; bg: string; dot: string }> = {
+  available: { label: 'Available', text: 'text-vacant', bg: 'bg-vacant-soft', dot: 'bg-vacant' },
+  booked: { label: 'Booked', text: 'text-notice', bg: 'bg-notice-soft', dot: 'bg-notice' },
+  'in-use': { label: 'In Use', text: 'text-occupied', bg: 'bg-occupied-soft', dot: 'bg-occupied' },
 }

@@ -12,16 +12,20 @@ import {
   type Door,
   type FurnitureItem,
 } from '@/features/seating/layout'
-import type { Floor, Office } from './types'
+import type { Floor, FloorProperties, Office, UserRole } from './types'
 import type {
   Asset,
   AssetCondition,
   Employee,
+  MeetingBooking,
+  MeetingRoom,
+  MeetingRoomStatus,
   MovementRequest,
   MovementStage,
   Notification,
   Seat,
   SeatEvent,
+  SeatRequest,
   SeatType,
   VerificationTask,
 } from './types'
@@ -55,6 +59,29 @@ interface DataState {
   verifications: VerificationTask[]
   notifications: Notification[]
   floorPlans: Record<string, FloorPlan>
+  meetingRooms: MeetingRoom[]
+  meetingBookings: MeetingBooking[]
+  seatRequests: SeatRequest[]
+
+  // access / persona (front-end only)
+  role: UserRole
+  personaId: string
+  setRole: (role: UserRole) => void
+  setPersona: (employeeId: string) => void
+
+  // floor properties (financials + area) — admin
+  updateFloorProperties: (floorId: string, patch: Partial<FloorProperties>) => void
+
+  // seat change / swap requests
+  createSeatChangeRequest: (input: { requesterId: string; requestedSeatId: string; reason: string; remarks?: string }) => Promise<void>
+  createSeatSwapRequest: (input: { requesterId: string; otherEmployeeId: string; reason: string; remarks?: string }) => Promise<void>
+  approveSeatRequest: (id: string) => Promise<void>
+  rejectSeatRequest: (id: string, reason: string) => Promise<void>
+
+  // meeting rooms
+  bookMeetingRoom: (input: { roomId: string; bookedById: string; title: string; date: string; start: string; end: string }) => Promise<void>
+  confirmMeetingUse: (bookingId: string) => void
+  releaseMeetingRoom: (bookingId: string) => void
 
   // seating actions
   allocateSeat: (seatId: string, employeeId: string, reason: string, effectiveDate: string, type: string) => Promise<void>
@@ -114,6 +141,120 @@ export const useData = create<DataState>()(
     (set, get) => ({
       ...seed,
       floorPlans: buildFloorPlans(),
+      role: 'admin' as UserRole,
+      personaId: seed.employees.find((e) => e.currentSeatId && e.employmentStatus === 'active')?.id ?? seed.employees[0].id,
+
+      setRole: (role) => set({ role }),
+      setPersona: (employeeId) => set({ personaId: employeeId }),
+
+      updateFloorProperties: (floorId, patch) =>
+        set((s) => ({ floors: s.floors.map((f) => (f.id === floorId ? { ...f, properties: { ...f.properties, ...patch } } : f)) })),
+
+      createSeatChangeRequest: async ({ requesterId, requestedSeatId, reason, remarks }) => {
+        await latency()
+        const emp = get().employees.find((e) => e.id === requesterId)
+        const cur = get().seats.find((s) => s.id === emp?.currentSeatId)
+        const target = get().seats.find((s) => s.id === requestedSeatId)
+        const req: SeatRequest = {
+          id: uid('req'), type: 'change', requesterId, requesterName: emp?.fullName ?? '', requesterCode: emp?.code ?? '',
+          currentSeatId: cur?.id, currentSeatNumber: cur?.seatNumber, requestedSeatId, requestedSeatNumber: target?.seatNumber,
+          reason, remarks, requestDate: new Date().toISOString(), status: 'pending',
+        }
+        set((s) => ({ seatRequests: [req, ...s.seatRequests] }))
+        get().pushNotification({ kind: 'seat', tone: 'info', title: 'Seat change request received', body: `${emp?.fullName} · ${cur?.seatNumber ?? '—'} → ${target?.seatNumber}. Admin notified by email.` })
+      },
+
+      createSeatSwapRequest: async ({ requesterId, otherEmployeeId, reason, remarks }) => {
+        await latency()
+        const emp = get().employees.find((e) => e.id === requesterId)
+        const other = get().employees.find((e) => e.id === otherEmployeeId)
+        const cur = get().seats.find((s) => s.id === emp?.currentSeatId)
+        const otherSeat = get().seats.find((s) => s.id === other?.currentSeatId)
+        const req: SeatRequest = {
+          id: uid('req'), type: 'swap', requesterId, requesterName: emp?.fullName ?? '', requesterCode: emp?.code ?? '',
+          currentSeatId: cur?.id, currentSeatNumber: cur?.seatNumber,
+          otherEmployeeId, otherEmployeeName: other?.fullName, otherSeatId: otherSeat?.id, otherSeatNumber: otherSeat?.seatNumber,
+          reason, remarks, requestDate: new Date().toISOString(), status: 'pending',
+        }
+        set((s) => ({ seatRequests: [req, ...s.seatRequests] }))
+        get().pushNotification({ kind: 'seat', tone: 'info', title: 'Seat swap request received', body: `${emp?.fullName} (${cur?.seatNumber}) ↔ ${other?.fullName} (${otherSeat?.seatNumber}). Admin notified by email.` })
+      },
+
+      approveSeatRequest: async (id) => {
+        await latency()
+        const req = get().seatRequests.find((r) => r.id === id)
+        if (!req) return
+        const now = new Date().toISOString()
+        const evs: SeatEvent[] = []
+        const mk = (seatId: string, seatNumber: string, type: SeatEvent['type'], employeeId?: string, employeeName?: string): SeatEvent => ({
+          id: uid('sev'), seatId, seatNumber, type, employeeId, employeeName, reason: `Request ${req.id} approved`, effectiveDate: now, actor: actorName, timestamp: now,
+        })
+        if (req.type === 'change' && req.requestedSeatId) {
+          set((s) => ({
+            seats: s.seats.map((seat) => {
+              if (seat.id === req.currentSeatId) return { ...seat, status: 'vacant', employeeId: undefined, allocationDate: undefined }
+              if (seat.id === req.requestedSeatId) return { ...seat, status: 'occupied', employeeId: req.requesterId, allocationDate: now }
+              return seat
+            }),
+            employees: s.employees.map((e) => (e.id === req.requesterId ? { ...e, currentSeatId: req.requestedSeatId } : e)),
+          }))
+          if (req.currentSeatId && req.currentSeatNumber) evs.push(mk(req.currentSeatId, req.currentSeatNumber, 'moved-out', req.requesterId, req.requesterName))
+          if (req.requestedSeatNumber) evs.push(mk(req.requestedSeatId, req.requestedSeatNumber, 'moved-in', req.requesterId, req.requesterName))
+        } else if (req.type === 'swap' && req.currentSeatId && req.otherSeatId && req.otherEmployeeId) {
+          set((s) => ({
+            seats: s.seats.map((seat) => {
+              if (seat.id === req.currentSeatId) return { ...seat, employeeId: req.otherEmployeeId, allocationDate: now }
+              if (seat.id === req.otherSeatId) return { ...seat, employeeId: req.requesterId, allocationDate: now }
+              return seat
+            }),
+            employees: s.employees.map((e) => {
+              if (e.id === req.requesterId) return { ...e, currentSeatId: req.otherSeatId }
+              if (e.id === req.otherEmployeeId) return { ...e, currentSeatId: req.currentSeatId }
+              return e
+            }),
+          }))
+          if (req.currentSeatNumber) evs.push(mk(req.currentSeatId, req.currentSeatNumber, 'moved-in', req.otherEmployeeId, req.otherEmployeeName))
+          if (req.otherSeatNumber) evs.push(mk(req.otherSeatId, req.otherSeatNumber, 'moved-in', req.requesterId, req.requesterName))
+        }
+        set((s) => ({
+          seatRequests: s.seatRequests.map((r) => (r.id === id ? { ...r, status: 'approved', decidedAt: now } : r)),
+          seatEvents: [...evs, ...s.seatEvents],
+        }))
+        get().pushNotification({ kind: 'seat', tone: 'success', title: 'Request approved', body: `${req.requesterName}'s ${req.type} request approved — seat map updated. Employee notified.` })
+      },
+
+      rejectSeatRequest: async (id, reason) => {
+        await latency()
+        const req = get().seatRequests.find((r) => r.id === id)
+        set((s) => ({ seatRequests: s.seatRequests.map((r) => (r.id === id ? { ...r, status: 'rejected', decisionReason: reason, decidedAt: new Date().toISOString() } : r)) }))
+        get().pushNotification({ kind: 'seat', tone: 'warning', title: 'Request rejected', body: `${req?.requesterName}'s request was rejected. Employee notified.` })
+      },
+
+      bookMeetingRoom: async ({ roomId, bookedById, title, date, start, end }) => {
+        await latency()
+        const room = get().meetingRooms.find((r) => r.id === roomId)
+        const emp = get().employees.find((e) => e.id === bookedById)
+        const [sh, sm] = start.split(':').map(Number)
+        const [eh, em] = end.split(':').map(Number)
+        const durationMins = Math.max(15, eh * 60 + em - (sh * 60 + sm))
+        const bk: MeetingBooking = {
+          id: uid('bk'), roomId, roomName: room?.name ?? '', bookedById, bookedByName: emp?.fullName ?? '',
+          title: title || 'Meeting', date, start, end, durationMins, status: 'upcoming',
+        }
+        set((s) => ({ meetingBookings: [bk, ...s.meetingBookings] }))
+        get().pushNotification({ kind: 'system', tone: 'success', title: 'Meeting room booked', body: `${room?.name} · ${start}–${end} · ${bk.title}.` })
+      },
+
+      confirmMeetingUse: (bookingId) => {
+        const bk = get().meetingBookings.find((b) => b.id === bookingId)
+        get().pushNotification({ kind: 'system', tone: 'info', title: 'Booking confirmed', body: `${bk?.roomName} kept active for the remaining period.` })
+      },
+
+      releaseMeetingRoom: (bookingId) => {
+        const bk = get().meetingBookings.find((b) => b.id === bookingId)
+        set((s) => ({ meetingBookings: s.meetingBookings.map((b) => (b.id === bookingId ? { ...b, status: 'done' } : b)) }))
+        get().pushNotification({ kind: 'system', tone: 'success', title: 'Meeting room freed', body: `${bk?.roomName} is now available for others.` })
+      },
 
       allocateSeat: async (seatId, employeeId, reason, effectiveDate, type) => {
         await latency()
@@ -440,23 +581,23 @@ export const useData = create<DataState>()(
       resetDemo: () => {
         localStorage.removeItem('locus.db')
         const fresh = buildSeed()
-        set({ ...fresh, floorPlans: buildFloorPlans() } as Partial<DataState>)
+        set({ ...fresh, floorPlans: buildFloorPlans(), role: 'admin', personaId: fresh.employees.find((e) => e.currentSeatId)?.id ?? fresh.employees[0].id } as Partial<DataState>)
       },
     }),
     {
       name: 'locus.db',
-      version: 14,
-      // v14 makes both floors fully-editable vector plans (no background image) —
-      // rooms + seats are real, movable, saveable objects. The persisted seats /
-      // floors / floorPlans no longer match, so returning an empty slice lets the
-      // shallow merge rebuild from the fresh seed; the user's later edits persist.
+      version: 15,
+      // v15 adds roles, floor properties, seat requests and meeting rooms. The
+      // persisted shape changed, so returning an empty slice lets the shallow
+      // merge rebuild everything from the fresh seed; later edits still persist.
       migrate: () => ({}) as DataState,
       partialize: (s) => ({
         offices: s.offices, floors: s.floors, departments: s.departments,
         employees: s.employees, seats: s.seats, seatEvents: s.seatEvents,
         categories: s.categories, assets: s.assets, movements: s.movements,
         verifications: s.verifications, notifications: s.notifications,
-        floorPlans: s.floorPlans,
+        floorPlans: s.floorPlans, meetingRooms: s.meetingRooms, meetingBookings: s.meetingBookings,
+        seatRequests: s.seatRequests, role: s.role, personaId: s.personaId,
       }),
     },
   ),

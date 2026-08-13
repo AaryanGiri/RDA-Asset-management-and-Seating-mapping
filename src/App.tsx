@@ -10,6 +10,17 @@ import { MovementsPage } from '@/pages/MovementsPage'
 import { VerificationPage } from '@/pages/VerificationPage'
 import { AssetAnalyticsPage } from '@/pages/AssetAnalyticsPage'
 import { ScanPage } from '@/pages/ScanPage'
+import { MySeatPage } from '@/pages/MySeatPage'
+import { RequestsPage } from '@/pages/RequestsPage'
+import { MeetingRoomsPage } from '@/pages/MeetingRoomsPage'
+import { useData } from '@/lib/store'
+import type { ReactNode } from 'react'
+
+// Employee access is limited to their own seat, the floor map and meeting rooms.
+function AdminOnly({ children }: { children: ReactNode }) {
+  const role = useData((s) => s.role)
+  return role === 'admin' ? <>{children}</> : <Navigate to="/my-seat" replace />
+}
 
 export default function App() {
   return (
@@ -17,14 +28,17 @@ export default function App() {
       <Route element={<Shell />}>
         <Route path="/" element={<DashboardPage />} />
         <Route path="/seating" element={<SeatingPage />} />
-        <Route path="/directory" element={<DirectoryPage />} />
-        <Route path="/seating-analytics" element={<SeatingAnalyticsPage />} />
-        <Route path="/assets" element={<AssetsPage />} />
-        <Route path="/assets/:id" element={<AssetPassport />} />
-        <Route path="/movements" element={<MovementsPage />} />
-        <Route path="/verification" element={<VerificationPage />} />
-        <Route path="/asset-analytics" element={<AssetAnalyticsPage />} />
-        <Route path="/scan" element={<ScanPage />} />
+        <Route path="/my-seat" element={<MySeatPage />} />
+        <Route path="/meeting-rooms" element={<MeetingRoomsPage />} />
+        <Route path="/requests" element={<AdminOnly><RequestsPage /></AdminOnly>} />
+        <Route path="/directory" element={<AdminOnly><DirectoryPage /></AdminOnly>} />
+        <Route path="/seating-analytics" element={<AdminOnly><SeatingAnalyticsPage /></AdminOnly>} />
+        <Route path="/assets" element={<AdminOnly><AssetsPage /></AdminOnly>} />
+        <Route path="/assets/:id" element={<AdminOnly><AssetPassport /></AdminOnly>} />
+        <Route path="/movements" element={<AdminOnly><MovementsPage /></AdminOnly>} />
+        <Route path="/verification" element={<AdminOnly><VerificationPage /></AdminOnly>} />
+        <Route path="/asset-analytics" element={<AdminOnly><AssetAnalyticsPage /></AdminOnly>} />
+        <Route path="/scan" element={<AdminOnly><ScanPage /></AdminOnly>} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Route>
     </Routes>

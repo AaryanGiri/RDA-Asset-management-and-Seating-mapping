@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { Plus, Minus, Maximize2, Locate } from 'lucide-react'
 import { FLOOR_GEOMETRY } from './floorplans'
 import type { RoomKind } from './floorplans'
@@ -18,7 +18,7 @@ import { FloorSVG } from './FloorSVG'
 import { useData } from '@/lib/store'
 import { SEAT_STATUS } from '@/lib/status'
 import { clamp } from '@/lib/utils'
-import type { Seat, Employee } from '@/lib/types'
+import type { Seat, Employee, Department } from '@/lib/types'
 import { cn } from '@/lib/utils'
 
 interface Props {
@@ -28,6 +28,8 @@ interface Props {
   selectedId?: string
   focusId?: string
   dimUnmatched?: Set<string> | null
+  colorMode?: 'status' | 'department'
+  departments?: Department[]
   onSelect: (seat: Seat) => void
   // editor
   editing?: boolean
@@ -101,9 +103,11 @@ const handleCursor: Record<string, string> = {
 
 export function FloorCanvas({
   floorId, seats, employees, selectedId, focusId, dimUnmatched, onSelect,
+  colorMode = 'status', departments = [],
   editing = false, tool = 'select', wallType = 'gypsum', doorType = 'glass',
   furnitureKind = 'desk', roomKind = 'office', gridSnap = true, selection = null, onSelectElement,
 }: Props) {
+  const deptColor = useMemo(() => new Map(departments.map((d) => [d.id, d.color])), [departments])
   const storePlan = useData((s) => s.floorPlans[floorId])
   const plan = storePlan ?? geometryToPlan(FLOOR_GEOMETRY[floorId])
   const ppf = plan.pxPerFoot
@@ -516,6 +520,9 @@ export function FloorCanvas({
               const dim = dimUnmatched ? !dimUnmatched.has(seat.id) : false
               const isVacant = seat.status === 'vacant'
               const emp = employees.find((e) => e.id === seat.employeeId)
+              const deptFill = colorMode === 'department' ? (emp ? deptColor.get(emp.departmentId) : undefined) : undefined
+              const fill = deptFill ?? (isVacant ? 'rgb(var(--c-surface))' : m.fill)
+              const stroke = deptFill ? '#fff' : (isVacant ? m.fill : '#fff')
               const r = hovered ? markerR * 1.32 : markerR
               const seatInteractive = editing ? tool === 'select' || tool === 'seat' : true
               return (
@@ -550,8 +557,8 @@ export function FloorCanvas({
                   {selected && <circle r={markerR + 7} style={{ fill: 'none', stroke: m.fill, transformBox: 'fill-box', transformOrigin: 'center' }} strokeWidth={2.5} className="animate-pulse-ring" />}
                   {selected && <circle r={markerR + 5} style={{ fill: 'none', stroke: m.fill }} strokeWidth={2} opacity={0.9} />}
                   {hovered && !selected && <circle r={markerR + 3.5} style={{ fill: 'none', stroke: m.fill }} strokeWidth={1.5} opacity={0.5} />}
-                  <circle r={r} style={{ fill: isVacant ? 'rgb(var(--c-surface))' : m.fill, stroke: isVacant ? m.fill : '#fff' }} strokeWidth={isVacant ? 2.4 : 1.6} className="transition-all duration-150" />
-                  {markerGlyph(seat, r)}
+                  <circle r={r} style={{ fill, stroke }} strokeWidth={isVacant && !deptFill ? 2.4 : 1.6} className="transition-all duration-150" />
+                  {!deptFill && markerGlyph(seat, r)}
                   {emp && (
                     <text textAnchor="middle" dominantBaseline="central" y={0.5} style={{ fill: '#fff', pointerEvents: 'none' }} fontSize={r * 0.82} fontWeight={700} className="font-sans transition-all duration-150">
                       {emp.fullName.split(' ').map((p) => p[0]).slice(0, 2).join('')}

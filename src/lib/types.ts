@@ -23,6 +23,15 @@ export interface Office {
   isPilot: boolean
 }
 
+export interface FloorProperties {
+  carpetArea?: number // sq ft
+  superBuiltUpArea?: number // sq ft
+  rentalCost?: number // INR / month
+  maintenanceCharge?: number // INR / month
+  overheadExpenses?: number // INR / month
+  miscExpense?: number // INR / month
+}
+
 export interface Floor {
   id: string
   officeId: string
@@ -30,6 +39,61 @@ export interface Floor {
   level: number
   plan: string // key identifying the SVG floor component
   seatCount: number
+  properties?: FloorProperties
+}
+
+// ── Access roles ────────────────────────────────────────────────────────────
+export type UserRole = 'admin' | 'employee'
+
+// ── Seat change / swap requests (employee → admin approval) ──────────────────
+export type SeatRequestType = 'change' | 'swap'
+export type RequestStatus = 'pending' | 'approved' | 'rejected'
+
+export interface SeatRequest {
+  id: string
+  type: SeatRequestType
+  requesterId: string
+  requesterName: string
+  requesterCode: string
+  currentSeatId?: string
+  currentSeatNumber?: string
+  requestedSeatId?: string // seat change target
+  requestedSeatNumber?: string
+  otherEmployeeId?: string // swap counterpart
+  otherEmployeeName?: string
+  otherSeatId?: string
+  otherSeatNumber?: string
+  reason: string
+  remarks?: string
+  requestDate: string
+  status: RequestStatus
+  decisionReason?: string
+  decidedAt?: string
+}
+
+// ── Meeting rooms & bookings ─────────────────────────────────────────────────
+export type MeetingRoomStatus = 'available' | 'booked' | 'in-use'
+
+export interface MeetingRoom {
+  id: string
+  name: string // e.g. MR-01
+  label: string // human name from the plan
+  floorId: string
+  capacity: number
+}
+
+export interface MeetingBooking {
+  id: string
+  roomId: string
+  roomName: string
+  bookedById: string
+  bookedByName: string
+  title: string
+  date: string // ISO date
+  start: string // "10:00"
+  end: string // "11:00"
+  durationMins: number
+  status: 'upcoming' | 'active' | 'done'
 }
 
 export interface Department {

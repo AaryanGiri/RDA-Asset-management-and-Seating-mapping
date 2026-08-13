@@ -1,7 +1,7 @@
 import { NavLink, useLocation } from 'react-router-dom'
 import {
   LayoutDashboard, Map, Users, PieChart, Boxes, ArrowLeftRight,
-  ShieldCheck, BarChart3, QrCode, RotateCcw, Sparkles,
+  ShieldCheck, BarChart3, QrCode, RotateCcw, Sparkles, Inbox, CalendarClock, Armchair,
 } from 'lucide-react'
 import { motion } from 'framer-motion'
 import { LogoFull } from './Logo'
@@ -17,34 +17,51 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
   const seats = useData((s) => s.seats)
   const verifications = useData((s) => s.verifications)
   const movements = useData((s) => s.movements)
+  const seatRequests = useData((s) => s.seatRequests)
+  const role = useData((s) => s.role)
   const resetDemo = useData((s) => s.resetDemo)
   const toast = useUI((s) => s.toast)
 
   const noticeCount = seats.filter((s) => s.status === 'notice').length
   const pendingVerif = verifications.filter((v) => v.status !== 'completed').length
   const openMoves = movements.filter((m) => m.stage !== 'received' && m.stage !== 'rejected').length
+  const pendingReq = seatRequests.filter((r) => r.status === 'pending').length
 
-  const groups: NavGroup[] = [
-    { title: 'Overview', items: [{ to: '/', label: 'Executive Dashboard', icon: LayoutDashboard, end: true }] },
-    {
-      title: 'Workplace · Module A',
-      items: [
-        { to: '/seating', label: 'Floor Map', icon: Map },
-        { to: '/directory', label: 'Employee Locator', icon: Users },
-        { to: '/seating-analytics', label: 'Seating Analytics', icon: PieChart, badge: noticeCount },
-      ],
-    },
-    {
-      title: 'Assets · Module B',
-      items: [
-        { to: '/assets', label: 'Asset Register', icon: Boxes, end: true },
-        { to: '/movements', label: 'Movements', icon: ArrowLeftRight, badge: openMoves },
-        { to: '/verification', label: 'Verification', icon: ShieldCheck, badge: pendingVerif },
-        { to: '/asset-analytics', label: 'Asset Analytics', icon: BarChart3 },
-      ],
-    },
-    { title: 'Field', items: [{ to: '/scan', label: 'Scan to Open', icon: QrCode }] },
-  ]
+  const groups: NavGroup[] = role === 'employee'
+    ? [
+        { title: 'Overview', items: [{ to: '/', label: 'Dashboard', icon: LayoutDashboard, end: true }] },
+        {
+          title: 'My Workplace',
+          items: [
+            { to: '/my-seat', label: 'My Seat', icon: Armchair },
+            { to: '/seating', label: 'Floor Map', icon: Map },
+            { to: '/meeting-rooms', label: 'Meeting Rooms', icon: CalendarClock },
+          ],
+        },
+      ]
+    : [
+        { title: 'Overview', items: [{ to: '/', label: 'Executive Dashboard', icon: LayoutDashboard, end: true }] },
+        {
+          title: 'Workplace · Module A',
+          items: [
+            { to: '/seating', label: 'Floor Map', icon: Map },
+            { to: '/directory', label: 'Employee Locator', icon: Users },
+            { to: '/requests', label: 'Seat Requests', icon: Inbox, badge: pendingReq },
+            { to: '/meeting-rooms', label: 'Meeting Rooms', icon: CalendarClock },
+            { to: '/seating-analytics', label: 'Seating Analytics', icon: PieChart, badge: noticeCount },
+          ],
+        },
+        {
+          title: 'Assets · Module B',
+          items: [
+            { to: '/assets', label: 'Asset Register', icon: Boxes, end: true },
+            { to: '/movements', label: 'Movements', icon: ArrowLeftRight, badge: openMoves },
+            { to: '/verification', label: 'Verification', icon: ShieldCheck, badge: pendingVerif },
+            { to: '/asset-analytics', label: 'Asset Analytics', icon: BarChart3 },
+          ],
+        },
+        { title: 'Field', items: [{ to: '/scan', label: 'Scan to Open', icon: QrCode }] },
+      ]
 
   return (
     <aside className="flex h-full w-[260px] flex-col border-r border-border bg-surface">

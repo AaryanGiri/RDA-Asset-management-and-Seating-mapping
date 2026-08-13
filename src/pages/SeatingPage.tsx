@@ -1,8 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { Search, X, Layers, Users2, DoorOpen, CalendarClock, Pencil, Check, RotateCcw, Ruler, Building2, Plus } from 'lucide-react'
+import { Search, X, Layers, Users2, DoorOpen, CalendarClock, Pencil, Check, RotateCcw, Ruler, Building2, Plus, Palette, CircleDot } from 'lucide-react'
 import { FloorCanvas } from '@/features/seating/FloorCanvas'
 import { Legend } from '@/features/seating/Legend'
+import { DepartmentLegend } from '@/features/seating/DepartmentLegend'
+import { FloorProperties } from '@/features/seating/FloorProperties'
 import { SeatDetail } from '@/features/seating/SeatDetail'
 import { ToolPalette, PropertiesPanel, AreaSchedule, PlanLegend } from '@/features/seating/LayoutEditor'
 import { FloorBuilder } from '@/features/seating/FloorBuilder'
@@ -20,12 +22,18 @@ export function SeatingPage() {
   const seats = useData((s) => s.seats)
   const employees = useData((s) => s.employees)
   const floors = useData((s) => s.floors)
+  const departments = useData((s) => s.departments)
   const floorPlans = useData((s) => s.floorPlans)
+  const role = useData((s) => s.role)
   const resetFloorPlan = useData((s) => s.resetFloorPlan)
   const setFloorScale = useData((s) => s.setFloorScale)
   const removeFloor = useData((s) => s.removeFloor)
   const [params, setParams] = useSearchParams()
 
+  const isAdmin = role === 'admin'
+  const [colorMode, setColorMode] = useState<'status' | 'department'>('status')
+  const [activeDept, setActiveDept] = useState<string | null>(null)
+  const [propsOpen, setPropsOpen] = useState(false)
   const [floorId, setFloorId] = useState(floors[0].id)
   const [selectedId, setSelectedId] = useState<string | undefined>()
   const [focusId, setFocusId] = useState<string | undefined>()
@@ -94,11 +102,25 @@ export function SeatingPage() {
     return out
   }, [query, seats, employees])
 
+  const empDept = useMemo(() => new Map(employees.map((e) => [e.id, e.departmentId])), [employees])
+  const deptCounts = useMemo(() => {
+    const c: Record<string, number> = {}
+    for (const s of floorSeats) {
+      if (!s.employeeId) continue
+      const d = empDept.get(s.employeeId)
+      if (d) c[d] = (c[d] ?? 0) + 1
+    }
+    return c
+  }, [floorSeats, empDept])
+
   const highlightSet = useMemo(() => {
     if (query.trim()) return new Set(searchResults.map((r) => r.seat.id))
-    if (active.size < ALL.length) return new Set(floorSeats.filter((s) => active.has(s.status)).map((s) => s.id))
+    if (colorMode === 'department' && activeDept) {
+      return new Set(floorSeats.filter((s) => s.employeeId && empDept.get(s.employeeId) === activeDept).map((s) => s.id))
+    }
+    if (colorMode === 'status' && active.size < ALL.length) return new Set(floorSeats.filter((s) => active.has(s.status)).map((s) => s.id))
     return null
-  }, [query, searchResults, active, floorSeats])
+  }, [query, searchResults, active, floorSeats, colorMode, activeDept, empDept])
 
   const focusSeat = (seatId: string) => {
     const seat = seats.find((s) => s.id === seatId)
@@ -140,16 +162,34 @@ export function SeatingPage() {
             onChange={(v) => { setFloorId(v); setSelectedId(undefined); setSelection(null) }}
             options={floors.map((f) => ({ value: f.id, label: <span className="flex items-center gap-1.5"><Layers className="h-3.5 w-3.5" />{f.name.split('·')[0].trim()}</span> }))}
           />
-          <button
-            onClick={() => (editing ? exitEditing() : setEditing(true))}
-            className={cn(
-              'inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-xs font-medium transition-colors',
-              editing ? 'border-brand bg-brand text-white shadow-sm' : 'border-border bg-surface text-muted hover:bg-surface-2 hover:text-content',
-            )}
-          >
-            {editing ? <Check className="h-3.5 w-3.5" /> : <Pencil className="h-3.5 w-3.5" />}
-            {editing ? 'Done editing' : 'Edit layout'}
-          </button>
+          {!editing && (
+            <Segmented
+              size="sm"
+              value={colorMode}
+              onChange={(v) => { setColorMode(v); setActiveDept(null) }}
+              options={[
+                { value: 'status', label: <span className="flex items-center gap-1.5"><CircleDot className="h-3.5 w-3.5" />Status</span> },
+                { value: 'department', label: <span className="flex items-center gap-1.5"><Palette className="h-3.5 w-3.5" />Department</span> },
+              ]}
+            />
+          )}
+          {isAdmin && !editing && (
+            <button onClick={() => setPropsOpen(true)} className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-surface px-2.5 py-1.5 text-xs font-medium text-muted transition-colors hover:bg-surface-2 hover:text-content">
+              <Building2 className="h-3.5 w-3.5" /> Properties
+            </button>
+          )}
+          {isAdmin && (
+            <button
+              onClick={() => (editing ? exitEditing() : setEditing(true))}
+              className={cn(
+                'inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-xs font-medium transition-colors',
+                editing ? 'border-brand bg-brand text-white shadow-sm' : 'border-border bg-surface text-muted hover:bg-surface-2 hover:text-content',
+              )}
+            >
+              {editing ? <Check className="h-3.5 w-3.5" /> : <Pencil className="h-3.5 w-3.5" />}
+              {editing ? 'Done editing' : 'Edit layout'}
+            </button>
+          )}
         </div>
 
         <div className="flex flex-1 flex-wrap items-center justify-end gap-3">
@@ -239,7 +279,11 @@ export function SeatingPage() {
             </>
           ) : (
             <>
-              <Legend counts={counts} active={active} onToggle={toggle} />
+              {colorMode === 'department' ? (
+                <DepartmentLegend departments={departments} counts={deptCounts} active={activeDept} onToggle={(id) => setActiveDept((cur) => (cur === id ? null : id))} />
+              ) : (
+                <Legend counts={counts} active={active} onToggle={toggle} />
+              )}
               <div className="card p-3.5">
                 <p className="section-title mb-2">Floor summary</p>
                 <div className="mb-2 flex items-baseline gap-1.5">
@@ -275,6 +319,8 @@ export function SeatingPage() {
             selectedId={selectedId}
             focusId={focusId}
             dimUnmatched={editing ? null : highlightSet}
+            colorMode={editing ? 'status' : colorMode}
+            departments={departments}
             onSelect={(s) => setSelectedId(s.id)}
             editing={editing}
             tool={tool}
@@ -290,6 +336,10 @@ export function SeatingPage() {
       </div>
 
       {!editing && <SeatDetail seatId={selectedId} onClose={() => setSelectedId(undefined)} onNavigateSeat={focusSeat} />}
+      {propsOpen && (() => {
+        const floor = floors.find((f) => f.id === floorId)
+        return floor ? <FloorProperties open={propsOpen} onClose={() => setPropsOpen(false)} floor={floor} seatCount={floorSeats.length} /> : null
+      })()}
       {builderOpen && (
         <FloorBuilder
           onClose={() => setBuilderOpen(false)}

@@ -10,11 +10,16 @@ import type {
   Department,
   Employee,
   Floor,
+  MeetingBooking,
+  MeetingRoom,
   MovementRequest,
   Notification,
   Office,
+  RequestStatus,
   Seat,
   SeatEvent,
+  SeatRequest,
+  SeatRequestType,
   SeatStatus,
   VerificationTask,
 } from './types'
@@ -44,8 +49,14 @@ export const OFFICES: Office[] = [
 ]
 
 export const FLOORS: Floor[] = [
-  { id: 'f1', officeId: 'hq', name: 'Aga Khan Foundation · Office', level: 3, plan: 'f1', seatCount: 0 },
-  { id: 'f2', officeId: 'hq', name: 'YMCA Building · New Delhi', level: 1, plan: 'f2', seatCount: 0 },
+  {
+    id: 'f1', officeId: 'hq', name: 'Aga Khan Foundation · Office', level: 3, plan: 'f1', seatCount: 0,
+    properties: { carpetArea: 18500, superBuiltUpArea: 24200, rentalCost: 2650000, maintenanceCharge: 385000, overheadExpenses: 240000, miscExpense: 65000 },
+  },
+  {
+    id: 'f2', officeId: 'hq', name: 'YMCA Building · New Delhi', level: 1, plan: 'f2', seatCount: 0,
+    properties: { carpetArea: 12400, superBuiltUpArea: 16100, rentalCost: 1720000, maintenanceCharge: 246000, overheadExpenses: 158000, miscExpense: 42000 },
+  },
 ]
 
 export const DEPARTMENTS: Department[] = [
@@ -91,6 +102,9 @@ export interface SeedData {
   movements: MovementRequest[]
   verifications: VerificationTask[]
   notifications: Notification[]
+  meetingRooms: MeetingRoom[]
+  meetingBookings: MeetingBooking[]
+  seatRequests: SeatRequest[]
 }
 
 function makeEmployees(count: number): Employee[] {
@@ -404,6 +418,121 @@ function makeNotifications(): Notification[] {
   return base.map((b, i) => ({ ...b, id: uid('ntf'), timestamp: daysAgoISO(i * 0.4 + rand()) }))
 }
 
+// ── Meeting rooms + bookings ─────────────────────────────────────────────────
+function makeMeetingRooms(): MeetingRoom[] {
+  const out: MeetingRoom[] = []
+  let n = 1
+  for (const floorId of ['f1', 'f2']) {
+    const geo = FLOOR_GEOMETRY[floorId]
+    const rooms = (geo.fixedRooms ?? []).filter((r) => r.kind === 'meeting')
+    for (const r of rooms) {
+      out.push({
+        id: `mr_${n}`,
+        name: `MR-${n.toString().padStart(2, '0')}`,
+        label: r.label.replace(/\b(\w)(\w*)/g, (_, a, b) => a + b.toLowerCase()),
+        floorId,
+        capacity: pick([4, 6, 6, 8, 10, 12]),
+      })
+      n++
+    }
+  }
+  return out
+}
+
+const MEETING_TITLES = ['Project Sync', 'Design Review', 'Client Call', 'Sprint Planning', 'Interview', '1:1', 'Leadership Review', 'Vendor Meeting', 'Standup', 'Budget Review']
+const TIME_SLOTS: [string, string, number][] = [
+  ['09:00', '09:30', 30], ['10:00', '11:00', 60], ['11:30', '12:30', 60],
+  ['14:00', '15:00', 60], ['15:30', '16:30', 60], ['16:00', '16:30', 30], ['17:00', '18:00', 60],
+]
+
+function makeMeetingBookings(rooms: MeetingRoom[], employees: Employee[]): MeetingBooking[] {
+  const out: MeetingBooking[] = []
+  const active = employees.filter((e) => e.employmentStatus === 'active')
+  let id = 1
+  rooms.forEach((room, ri) => {
+    // 3–5 bookings per room across the last week + today + next few days
+    const count = int(3, 5)
+    for (let i = 0; i < count; i++) {
+      const emp = pick(active)
+      const [start, end, dur] = TIME_SLOTS[(ri + i) % TIME_SLOTS.length]
+      // spread: some past (done), one today (active/booked), some future (upcoming)
+      let dayOffset: number
+      let status: MeetingBooking['status']
+      if (i === 0 && ri % 3 === 0) { dayOffset = 0; status = 'active' }
+      else if (i === 0) { dayOffset = 0; status = 'upcoming' }
+      else if (i <= 2) { dayOffset = int(1, 6); status = 'upcoming' }
+      else { dayOffset = -int(1, 6); status = 'done' }
+      const date = dayOffset >= 0 ? daysFromNowISO(dayOffset) : daysAgoISO(-dayOffset)
+      out.push({
+        id: `bk_${id++}`,
+        roomId: room.id,
+        roomName: room.name,
+        bookedById: emp.id,
+        bookedByName: emp.fullName,
+        title: pick(MEETING_TITLES),
+        date,
+        start,
+        end,
+        durationMins: dur,
+        status,
+      })
+    }
+  })
+  return out
+}
+
+// ── Sample seat change / swap requests for the Admin inbox ───────────────────
+function makeSeatRequests(employees: Employee[], seats: Seat[]): SeatRequest[] {
+  const seated = employees.filter((e) => e.currentSeatId)
+  const seatById = new Map(seats.map((s) => [s.id, s]))
+  const vacant = seats.filter((s) => s.status === 'vacant')
+  const out: SeatRequest[] = []
+  const reasonsChange = ['Prefer a quieter zone', 'Closer to my team', 'Near a window', 'Ergonomic needs', 'Team reshuffle']
+  const reasonsSwap = ['Sit with my project team', 'Mutually agreed swap', 'Closer to manager']
+
+  // 2 pending change, 1 pending swap, 1 approved, 1 rejected
+  const plan: { type: SeatRequestType; status: RequestStatus }[] = [
+    { type: 'change', status: 'pending' },
+    { type: 'change', status: 'pending' },
+    { type: 'swap', status: 'pending' },
+    { type: 'change', status: 'approved' },
+    { type: 'swap', status: 'rejected' },
+  ]
+  let vi = 0
+  plan.forEach((p, i) => {
+    const requester = seated[(i * 7 + 3) % seated.length]
+    const cur = requester.currentSeatId ? seatById.get(requester.currentSeatId) : undefined
+    const base: SeatRequest = {
+      id: uid('req'),
+      type: p.type,
+      requesterId: requester.id,
+      requesterName: requester.fullName,
+      requesterCode: requester.code,
+      currentSeatId: cur?.id,
+      currentSeatNumber: cur?.seatNumber,
+      reason: p.type === 'swap' ? pick(reasonsSwap) : pick(reasonsChange),
+      requestDate: daysAgoISO(int(0, 6)),
+      status: p.status,
+      decisionReason: p.status === 'rejected' ? 'Requested seat reserved for an incoming team.' : undefined,
+      decidedAt: p.status !== 'pending' ? daysAgoISO(int(0, 3)) : undefined,
+    }
+    if (p.type === 'change') {
+      const target = vacant[(vi++) % vacant.length]
+      base.requestedSeatId = target?.id
+      base.requestedSeatNumber = target?.seatNumber
+    } else {
+      const other = seated[(i * 11 + 9) % seated.length]
+      const otherSeat = other.currentSeatId ? seatById.get(other.currentSeatId) : undefined
+      base.otherEmployeeId = other.id
+      base.otherEmployeeName = other.fullName
+      base.otherSeatId = otherSeat?.id
+      base.otherSeatNumber = otherSeat?.seatNumber
+    }
+    out.push(base)
+  })
+  return out
+}
+
 export function buildSeed(): SeedData {
   const employees = makeEmployees(208)
   const { seats, events } = buildSeatsAndAssign(employees)
@@ -411,6 +540,9 @@ export function buildSeed(): SeedData {
   const movements = makeMovements(assets)
   const verifications = makeVerifications(assets)
   const notifications = makeNotifications()
+  const meetingRooms = makeMeetingRooms()
+  const meetingBookings = makeMeetingBookings(meetingRooms, employees)
+  const seatRequests = makeSeatRequests(employees, seats)
   return {
     offices: OFFICES,
     floors: FLOORS,
@@ -423,5 +555,8 @@ export function buildSeed(): SeedData {
     movements,
     verifications,
     notifications,
+    meetingRooms,
+    meetingBookings,
+    seatRequests,
   }
 }
