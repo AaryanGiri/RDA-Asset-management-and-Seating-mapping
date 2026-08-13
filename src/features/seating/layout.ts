@@ -156,7 +156,7 @@ export function roomAreaSqFt(r: Rect, ppf: number): number {
 
 // ── seed: convert a static FloorGeometry into an editable FloorPlan ───────────
 // pxPerFoot is calibrated so displayed dimensions are plausible for each floor.
-const PLAN_SCALE: Record<string, number> = { f1: 5.2, f2: 5.4 }
+const PLAN_SCALE: Record<string, number> = { f1: 6.3, f2: 5.2 }
 const PLAN_META: Record<string, { officeId: string; name: string }> = {
   f1: { officeId: 'hq', name: 'Aga Khan Foundation · Office' },
   f2: { officeId: 'hq', name: 'YMCA Building · New Delhi' },
@@ -164,8 +164,9 @@ const PLAN_META: Record<string, { officeId: string; name: string }> = {
 
 export function geometryToPlan(geo: FloorGeometry): FloorPlan {
   const meta = PLAN_META[geo.id] ?? { officeId: 'hq', name: geo.id }
-  // For image-backed floors the real drawing is the map — no vector rooms are
-  // synthesised (seats still overlay from fixedSeats, and stay editable).
+  // For image-backed floors the real drawing is the base map, and `fixedRooms`
+  // (pre-placed from the drawing's labels + dimensions) become editable rooms
+  // shown over it. Vector floors synthesise cabin rooms from their `cabins`.
   const cabinRooms: RoomShape[] = geo.bg
     ? []
     : (geo.cabins ?? []).map((c) => ({
@@ -186,7 +187,9 @@ export function geometryToPlan(geo: FloorGeometry): FloorPlan {
     pxPerFoot: PLAN_SCALE[geo.id] ?? 8,
     plate: geo.plate ?? geo.slabRect,
     bg: geo.bg ? { ...geo.bg } : undefined,
-    rooms: geo.bg ? [] : [...geo.rooms.map((r) => ({ ...r })), ...cabinRooms],
+    rooms: geo.bg
+      ? (geo.fixedRooms ?? []).map((r) => ({ ...r }))
+      : [...geo.rooms.map((r) => ({ ...r })), ...cabinRooms],
     walls: [],
     doors: [],
     furniture: [],

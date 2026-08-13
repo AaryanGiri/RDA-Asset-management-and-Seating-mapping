@@ -1,6 +1,8 @@
 import type { SeatType } from '@/lib/types'
 import { FLOOR1_SEATS } from './floor1Seats'
 import { FLOOR2_SEATS } from './floor2Seats'
+import { FLOOR1_ROOMS } from './floor1Rooms'
+import { FLOOR2_ROOMS } from './floor2Rooms'
 
 // Geometry is authored in viewBox units; seats are emitted as normalized 0–1
 // coordinates so the marker overlay stays pixel-perfect through zoom / pan / resize.
@@ -67,8 +69,10 @@ export interface FloorGeometry {
   banks: DeskBank[]
   cabins: CabinDef[]
   cores: Rect[]
-  /** When set, the floor is rendered from a real drawing image instead of vector rooms. */
+  /** When set, the floor renders a real drawing image as its base map. */
   bg?: { src: string }
+  /** Pre-placed editable rooms shown over an image-backed floor (in edit mode). */
+  fixedRooms?: RoomShape[]
   /** Exact per-seat coordinates (used instead of generated banks when present). */
   fixedSeats?: GeneratedSeat[]
   /** Standalone zone captions drawn over open areas. */
@@ -99,6 +103,7 @@ const FLOOR_1: FloorGeometry = {
   markerR: 5.5,
   bg: { src: 'floors/floor1.png' },
   fixedSeats: FLOOR1_SEATS,
+  fixedRooms: FLOOR1_ROOMS,
   banks: [],
   cabins: [],
   rooms: [],
@@ -119,6 +124,7 @@ const FLOOR_2: FloorGeometry = {
   markerR: 6,
   bg: { src: 'floors/floor2.png' },
   fixedSeats: FLOOR2_SEATS,
+  fixedRooms: FLOOR2_ROOMS,
   banks: [],
   cabins: [],
   rooms: [],

@@ -299,15 +299,20 @@ export function FloorSVG({
           </filter>
         </defs>
         <rect x={0} y={0} width={plan.vbw} height={plan.vbh} rx={10} style={{ fill: '#fff' }} filter="url(#plateShadow)" />
-        <image href={href} x={0} y={0} width={plan.vbw} height={plan.vbh} preserveAspectRatio="xMidYMid meet" opacity={editing ? 0.5 : 1} />
+        <image href={href} x={0} y={0} width={plan.vbw} height={plan.vbh} preserveAspectRatio="xMidYMid meet" opacity={editing ? 0.45 : 1} />
 
-        {/* editable structure drawn over the reference drawing */}
-        {plan.rooms.map((r) => (
-          <RoomCell key={r.id} r={r} hovered={hoveredRoomId === r.id} translucent onRoomHover={onRoomHover} />
-        ))}
-        {plan.walls.map((w) => <WallSeg key={w.id} wall={w} ppf={plan.pxPerFoot} />)}
-        {plan.furniture.map((f) => <FurnitureGlyph key={f.id} item={f} />)}
-        {plan.doors.map((d) => <DoorGlyph key={d.id} door={d} />)}
+        {/* editable structure — shown only in edit mode so the plain view stays a
+            clean, exact drawing; here they overlay the dimmed drawing to be moved. */}
+        {editing && (
+          <>
+            {plan.rooms.map((r) => (
+              <RoomCell key={r.id} r={r} hovered={hoveredRoomId === r.id} translucent onRoomHover={onRoomHover} />
+            ))}
+            {plan.walls.map((w) => <WallSeg key={w.id} wall={w} ppf={plan.pxPerFoot} />)}
+            {plan.furniture.map((f) => <FurnitureGlyph key={f.id} item={f} />)}
+            {plan.doors.map((d) => <DoorGlyph key={d.id} door={d} />)}
+          </>
+        )}
       </svg>
     )
   }
