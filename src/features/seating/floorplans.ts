@@ -88,10 +88,11 @@ export interface FloorGeometry {
 }
 
 // ── Floor 1 — RODIC "Office at Aga Khan Foundation" ──────────────────────────
-// Rendered directly from the architect's FINAL FLOOR LAYOUT PLAN (J+AM Storey,
-// 21-Aug-25). The drawing is the map background; W1–W146 workstations + 10 cabins
-// are overlaid at exact coordinates extracted from the PDF's own text layer
-// (→ floor1Seats.ts). viewBox matches the cropped background's aspect (1840×1462).
+// Fully-editable vector floor derived from the architect's FINAL FLOOR LAYOUT
+// PLAN (J+AM Storey, 21-Aug-25): rooms (`fixedRooms`) are pre-placed from the
+// drawing's labels + dimensions and W1–W146 + 10 cabins (`fixedSeats`) from its
+// text layer — everything is movable / resizable / saveable in the editor.
+// viewBox 920×731 keeps the drawing's proportions.
 const FLOOR_1: FloorGeometry = {
   id: 'f1',
   vbw: 920,
@@ -101,7 +102,6 @@ const FLOOR_1: FloorGeometry = {
   plate: { x: 0, y: 0, w: 920, h: 731 },
   cores: [],
   markerR: 5.5,
-  bg: { src: 'floors/floor1.png' },
   fixedSeats: FLOOR1_SEATS,
   fixedRooms: FLOOR1_ROOMS,
   banks: [],
@@ -110,9 +110,9 @@ const FLOOR_1: FloorGeometry = {
 }
 
 // ── Floor 2 — RODIC "Proposed Office at YMCA Building, New Delhi" ─────────────
-// Rendered from the DIRECTIONS Seating Arrangement Plan (30-03-2022). 88 numbered
-// workstations + 10 named executive cabins overlaid at exact PDF coordinates
-// (→ floor2Seats.ts). viewBox matches the cropped background's aspect (2072×1094).
+// Fully-editable vector floor from the DIRECTIONS Seating Arrangement Plan
+// (30-03-2022): rooms pre-placed from labels, 88 numbered workstations + 10
+// named executive cabins from the text layer. viewBox 1036×547.
 const FLOOR_2: FloorGeometry = {
   id: 'f2',
   vbw: 1036,
@@ -122,7 +122,6 @@ const FLOOR_2: FloorGeometry = {
   plate: { x: 0, y: 0, w: 1036, h: 547 },
   cores: [],
   markerR: 6,
-  bg: { src: 'floors/floor2.png' },
   fixedSeats: FLOOR2_SEATS,
   fixedRooms: FLOOR2_ROOMS,
   banks: [],

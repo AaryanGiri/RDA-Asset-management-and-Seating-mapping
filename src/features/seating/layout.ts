@@ -164,20 +164,20 @@ const PLAN_META: Record<string, { officeId: string; name: string }> = {
 
 export function geometryToPlan(geo: FloorGeometry): FloorPlan {
   const meta = PLAN_META[geo.id] ?? { officeId: 'hq', name: geo.id }
-  // For image-backed floors the real drawing is the base map, and `fixedRooms`
-  // (pre-placed from the drawing's labels + dimensions) become editable rooms
-  // shown over it. Vector floors synthesise cabin rooms from their `cabins`.
-  const cabinRooms: RoomShape[] = geo.bg
-    ? []
-    : (geo.cabins ?? []).map((c) => ({
-        id: `cab-${c.seatNumber}`,
-        label: c.seatNumber,
-        kind: 'cabin' as RoomKind,
-        x: c.x,
-        y: c.y,
-        w: c.w,
-        h: c.h,
-      }))
+  // Floors with `fixedRooms` (pre-placed from a real drawing's labels/dimensions)
+  // use those directly; otherwise cabin rooms are synthesised from `cabins`.
+  const cabinRooms: RoomShape[] = (geo.cabins ?? []).map((c) => ({
+    id: `cab-${c.seatNumber}`,
+    label: c.seatNumber,
+    kind: 'cabin' as RoomKind,
+    x: c.x,
+    y: c.y,
+    w: c.w,
+    h: c.h,
+  }))
+  const rooms: RoomShape[] = geo.fixedRooms?.length
+    ? geo.fixedRooms.map((r) => ({ ...r }))
+    : [...geo.rooms.map((r) => ({ ...r })), ...cabinRooms]
   return {
     id: geo.id,
     officeId: meta.officeId,
@@ -187,15 +187,13 @@ export function geometryToPlan(geo: FloorGeometry): FloorPlan {
     pxPerFoot: PLAN_SCALE[geo.id] ?? 8,
     plate: geo.plate ?? geo.slabRect,
     bg: geo.bg ? { ...geo.bg } : undefined,
-    rooms: geo.bg
-      ? (geo.fixedRooms ?? []).map((r) => ({ ...r }))
-      : [...geo.rooms.map((r) => ({ ...r })), ...cabinRooms],
+    rooms,
     walls: [],
     doors: [],
     furniture: [],
-    corridors: geo.bg || !geo.corridors ? undefined : geo.corridors.map((c) => ({ ...c })),
-    markers: geo.bg || !geo.markers ? undefined : geo.markers.map((m) => ({ ...m })),
-    zoneLabels: geo.bg || !geo.zoneLabels ? undefined : geo.zoneLabels.map((z) => ({ ...z })),
+    corridors: geo.corridors ? geo.corridors.map((c) => ({ ...c })) : undefined,
+    markers: geo.markers ? geo.markers.map((m) => ({ ...m })) : undefined,
+    zoneLabels: geo.zoneLabels ? geo.zoneLabels.map((z) => ({ ...z })) : undefined,
     markerR: geo.markerR,
   }
 }

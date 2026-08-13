@@ -445,11 +445,11 @@ export const useData = create<DataState>()(
     }),
     {
       name: 'locus.db',
-      version: 13,
-      // v12 moved both floors to the real RODIC drawings; v13 adds pre-placed
-      // editable rooms over them. The persisted seats / floors / floorPlans no
-      // longer match, so returning an empty slice lets the shallow merge rebuild
-      // everything from the fresh seed; the user's later edits still persist.
+      version: 14,
+      // v14 makes both floors fully-editable vector plans (no background image) —
+      // rooms + seats are real, movable, saveable objects. The persisted seats /
+      // floors / floorPlans no longer match, so returning an empty slice lets the
+      // shallow merge rebuild from the fresh seed; the user's later edits persist.
       migrate: () => ({}) as DataState,
       partialize: (s) => ({
         offices: s.offices, floors: s.floors, departments: s.departments,
