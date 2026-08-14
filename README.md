@@ -1,13 +1,12 @@
-# Locus — Asset & Workplace OS
+# Rodic AssetSpace — Asset & Workplace Platform
 
 A clickable, front-end-only **concept demo** of a unified Asset & Workplace Management
 platform. Built to *look and feel like a real, mature product* — a sales/vision piece,
 not a pilot or production build. Everything is mock data held in-memory and persisted to
 `localStorage`; there is no backend, login, or real integration.
 
-Product branding sits behind a neutral placeholder — **"Locus · Workplace OS"** — so it
-reads as a platform any organisation could buy (construction, manufacturing, healthcare,
-logistics, IT, government).
+The product is branded **"Rodic AssetSpace"** — a unified workplace-seating and
+asset-management platform.
 
 ## Run it
 

@@ -34,7 +34,7 @@ export function AssetsPage() {
   const defective = assets.filter((a) => a.status === 'defective').length
   const emp = (id?: string) => employees.find((e) => e.id === id)
 
-  const exportCSV = () => downloadCSV('rda-asset-register.csv', rows.map((a) => ({
+  const exportCSV = () => downloadCSV('rodic-assetspace-asset-register.csv', rows.map((a) => ({
     'Asset ID': a.assetId, Category: ASSET_CATEGORY_META[a.category].label, Subcategory: a.subcategory, Name: a.name,
     'Assigned To': emp(a.assignedEmployeeId)?.fullName ?? '—', Office: officeName(a.officeId), Location: a.location ?? '—',
     'Responsible Person': a.responsiblePerson, Status: ASSET_STATUS_META[a.status].label, Remarks: a.remarks ?? '',

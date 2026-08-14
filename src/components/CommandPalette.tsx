@@ -161,7 +161,7 @@ export function CommandPalette() {
             <div className="flex items-center gap-4 border-t border-border px-4 py-2.5 text-2xs text-subtle">
               <span className="flex items-center gap-1"><kbd className="kbd">↑</kbd><kbd className="kbd">↓</kbd> navigate</span>
               <span className="flex items-center gap-1"><kbd className="kbd">↵</kbd> open</span>
-              <span className="ml-auto">Locus Command</span>
+              <span className="ml-auto">Rodic AssetSpace</span>
             </div>
           </motion.div>
         </div>

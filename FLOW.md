@@ -1,4 +1,4 @@
-# Locus · Workplace OS — Flow Guide (for new users)
+# Rodic AssetSpace — Flow Guide (for new users)
 
 A one-page map of the two everyday flows: managing **where people sit** (Module A)
 and tracking **the things the office owns** (Module B). An interactive version of

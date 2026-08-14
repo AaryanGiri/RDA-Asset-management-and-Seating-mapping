@@ -1,5 +1,5 @@
 // ─────────────────────────────────────────────────────────────
-// Locus domain model — shared master data across both modules
+// Rodic AssetSpace domain model — shared master data across both modules
 // Location hierarchy: Country → State → City → Office → Building → Floor → Zone → Seat
 // ─────────────────────────────────────────────────────────────
 

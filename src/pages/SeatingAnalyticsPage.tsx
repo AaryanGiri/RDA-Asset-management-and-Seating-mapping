@@ -68,7 +68,7 @@ export function SeatingAnalyticsPage() {
 
   const animatedRate = useCountUp(occRate)
 
-  const exportOcc = () => downloadCSV('locus-occupancy-by-floor.csv', byFloor.map((f) => ({ Floor: f.name, ...f })))
+  const exportOcc = () => downloadCSV('rodic-assetspace-occupancy-by-floor.csv', byFloor.map((f) => ({ Floor: f.name, ...f })))
 
   return (
     <Page>

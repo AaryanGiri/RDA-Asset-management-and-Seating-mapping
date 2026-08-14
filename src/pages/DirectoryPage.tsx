@@ -48,7 +48,7 @@ export function DirectoryPage() {
   }, [employees, seats, floors, q, filter, dept, sort])
 
   const exportCSV = () => {
-    downloadCSV('locus-employee-directory.csv', rows.map(({ e, seat, floor }) => ({
+    downloadCSV('rodic-assetspace-employee-directory.csv', rows.map(({ e, seat, floor }) => ({
       Name: e.fullName, Code: e.code, Designation: e.designation, Department: deptName(e.departmentId),
       Project: e.project, Manager: e.reportingManager, Seat: seat?.seatNumber ?? '—', Floor: floor?.name ?? '—',
       Status: e.employmentStatus === 'notice' ? 'On Notice' : seat ? 'Seated' : 'Unseated', Email: e.email,
