@@ -244,17 +244,48 @@ function mkEvent(seat: Seat, type: SeatEvent['type'], emp: Employee | undefined,
 
 // ── Assets (Section 7 — three primary categories + subcategories) ────────────
 export const CATEGORIES: AssetCategory[] = [
-  { id: 'tangible', name: 'Tangible Assets', subcategories: ['Laptop', 'Desktop', 'Monitor', 'Printer', 'Furniture', 'Networking', 'Projector', 'Mobile Phone'] },
+  {
+    id: 'tangible', name: 'Tangible Assets', subcategories: [
+      // Furniture & fixtures (Admin / Facilities)
+      'Chair', 'Desk / Table', 'Cabinet / Storage', 'Sofa', 'Whiteboard',
+      // Electrical & HVAC
+      'Air Conditioner', 'UPS', 'Generator', 'Fan',
+      // Appliances / pantry
+      'Refrigerator', 'Water Dispenser', 'Microwave',
+      // Safety & security
+      'CCTV Camera', 'Fire Extinguisher',
+      // IT & electronics
+      'Laptop', 'Desktop', 'Monitor', 'Printer', 'Networking', 'Projector', 'Mobile Phone',
+    ],
+  },
   { id: 'intangible', name: 'Intangible Assets', subcategories: ['Software', 'License', 'Subscription', 'Domain', 'Cloud Service'] },
   { id: 'land-building', name: 'Land & Building', subcategories: ['Office Space', 'Building', 'Land', 'Parking'] },
 ]
 
 const ASSET_NAMES: Record<string, string[]> = {
+  // Furniture & fixtures
+  Chair: ['Godrej Ergonomic Chair', 'Featherlite Executive Chair', 'Herman Miller Aeron Chair', 'Nilkamal Visitor Chair', 'Wipro Mesh Task Chair'],
+  'Desk / Table': ['Godrej Workstation Desk', 'Steelcase Ology Desk', 'Conference Table (8-seat)', 'Reception Desk', 'Foldable Training Table'],
+  'Cabinet / Storage': ['Godrej Storage Cabinet', 'Filing Cabinet 4-Drawer', 'Steel Almirah', 'Low-Height Storage Unit'],
+  Sofa: ['3-Seater Office Sofa', 'Reception Lounge Sofa', 'Durian 2-Seater Sofa'],
+  Whiteboard: ['Magnetic Whiteboard 6×4', 'Glass Writing Board', 'Mobile Flip Chart Board'],
+  // Electrical & HVAC
+  'Air Conditioner': ['Voltas 1.5T Split AC', 'Daikin 2T Cassette AC', 'Blue Star Tower AC', 'Hitachi 1T Window AC'],
+  UPS: ['APC Smart-UPS 3kVA', 'Luminous UPS 2kVA', 'Vertiv Liebert 5kVA UPS'],
+  Generator: ['Kirloskar 15kVA DG Set', 'Mahindra Powerol 25kVA Genset', 'Cummins 30kVA Genset'],
+  Fan: ['Havells Ceiling Fan', 'Orient Wall Fan', 'Bajaj Pedestal Fan'],
+  // Appliances / pantry
+  Refrigerator: ['LG 260L Refrigerator', 'Samsung Double-Door Fridge', 'Whirlpool 190L Fridge'],
+  'Water Dispenser': ['Blue Star Water Dispenser', 'Voltas Mini Water Cooler', 'Kent Water Purifier'],
+  Microwave: ['IFB 20L Microwave', 'Samsung Convection Oven', 'LG Solo Microwave'],
+  // Safety & security
+  'CCTV Camera': ['Hikvision Dome Camera', 'CP Plus Bullet Camera', 'Dahua 4MP IP Camera'],
+  'Fire Extinguisher': ['ABC Fire Extinguisher 6kg', 'CO₂ Fire Extinguisher 4.5kg', 'Water-CO₂ Extinguisher 9L'],
+  // IT & electronics
   Laptop: ['Dell Latitude 7440', 'MacBook Pro 14', 'Lenovo ThinkPad X1', 'HP EliteBook 840'],
   Desktop: ['Dell OptiPlex 7010', 'HP ProDesk 400', 'Lenovo ThinkCentre M70'],
   Monitor: ['Dell U2723QE 27"', 'LG 27UP850', 'Samsung ViewFinity S8'],
   Printer: ['HP LaserJet M479', 'Canon iR 2630', 'Epson WF-C5790'],
-  Furniture: ['Herman Miller Aeron Chair', 'Steelcase Ology Desk', 'Godrej Storage Cabinet', 'Conference Table (8-seat)'],
   Networking: ['Cisco C9200-24 Switch', 'Aruba 2930F Switch', 'Fortinet FG-60F Firewall'],
   Projector: ['Epson EB-L200', 'BenQ LK936ST'],
   'Mobile Phone': ['iPhone 14', 'Samsung Galaxy S23'],
@@ -278,14 +309,16 @@ const officeNm = (id: string) => OFFICES.find((o) => o.id === id)?.name ?? id
 function makeAssets(employees: Employee[]): Asset[] {
   const out: Asset[] = []
   const active = employees.filter((e) => e.employmentStatus === 'active')
-  const total = 44
+  const total = 64
   let n = 140
   for (let i = 0; i < total; i++) {
-    const cat = i < 30 ? CATEGORIES[0] : i < 40 ? CATEGORIES[1] : CATEGORIES[2]
+    const cat = i < 48 ? CATEGORIES[0] : i < 58 ? CATEGORIES[1] : CATEGORIES[2]
     const subcategory = pick(cat.subcategories)
     const name = pick(ASSET_NAMES[subcategory] ?? [subcategory])
     const isProperty = cat.id === 'land-building'
-    const assignedEmployee = isProperty ? undefined : pick(active)
+    // personal-issue items are assigned to an employee; shared facility assets are location-based
+    const personal = ['Laptop', 'Desktop', 'Monitor', 'Mobile Phone'].includes(subcategory)
+    const assignedEmployee = isProperty || !personal ? undefined : pick(active)
     const officeId = chance(0.8) ? 'hq' : pick(['mum', 'blr'])
     const floorId = chance(0.6) ? 'f1' : 'f2'
     const location = isProperty ? 'Whole floor' : floorId === 'f1' ? pick(ROOMS_F1) : pick(ROOMS_F2)
@@ -303,7 +336,7 @@ function makeAssets(employees: Employee[]): Asset[] {
     if (chance(0.4) && !isProperty) images.push({ id: uid('img'), kind: 'current', hue: (i * 47 + 120) % 360, capturedAt: daysAgoISO(int(5, 40)), note: 'Latest condition' })
 
     const lifecycle: Asset['lifecycle'] = [
-      { id: uid('al'), type: 'deployed', title: 'Asset deployed', detail: isProperty ? `Recorded under ${officeNm(officeId)}` : `Assigned to ${assignedEmployee?.fullName}`, actor: 'A. Menon (Admin)', timestamp: daysAgoISO(deployDaysAgo) },
+      { id: uid('al'), type: 'deployed', title: 'Asset deployed', detail: isProperty ? `Recorded under ${officeNm(officeId)}` : assignedEmployee ? `Assigned to ${assignedEmployee.fullName}` : `Deployed at ${location} · ${officeNm(officeId)}`, actor: 'A. Menon (Admin)', timestamp: daysAgoISO(deployDaysAgo) },
     ]
     if (chance(0.35) && !isProperty) lifecycle.push({ id: uid('al'), type: 'relocated', title: 'Relocated', detail: `Moved to ${location}`, actor: responsiblePerson, timestamp: daysAgoISO(int(30, deployDaysAgo - 5)) })
 

@@ -669,7 +669,7 @@ export const useData = create<DataState>()(
     }),
     {
       name: 'locus.db',
-      version: 18,
+      version: 19,
       // v16 replaces the asset module with the Section 7 model (categories +
       // subcategories, assignment, images, remarks, lifecycle) and drops the old
       // movements / verifications / QR. Returning an empty slice rebuilds
