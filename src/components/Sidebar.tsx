@@ -1,13 +1,14 @@
 import { NavLink, useLocation } from 'react-router-dom'
 import {
   LayoutDashboard, Map, Users, PieChart, Boxes,
-  RotateCcw, Sparkles, Inbox, CalendarClock, Armchair,
+  RotateCcw, Sparkles, Inbox, CalendarClock, Armchair, LayoutGrid,
 } from 'lucide-react'
 import { motion } from 'framer-motion'
 import { LogoFull } from './Logo'
 import { cn } from '@/lib/utils'
 import { useData } from '@/lib/store'
 import { useUI } from '@/lib/uiStore'
+import { useNeighborhood } from '@/features/neighborhood/store'
 
 interface NavItem { to: string; label: string; icon: typeof Map; end?: boolean; badge?: number }
 interface NavGroup { title: string; items: NavItem[] }
@@ -20,8 +21,10 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
   const resetDemo = useData((s) => s.resetDemo)
   const toast = useUI((s) => s.toast)
 
+  const nRequests = useNeighborhood((s) => s.requests)
   const noticeCount = seats.filter((s) => s.status === 'notice').length
   const pendingReq = seatRequests.filter((r) => r.status === 'pending').length
+  const nPending = nRequests.filter((r) => r.status === 'pending').length
 
   const groups: NavGroup[] = role === 'employee'
     ? [
@@ -29,6 +32,7 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
         {
           title: 'My Workplace',
           items: [
+            { to: '/neighborhood', label: 'Seat Map', icon: LayoutGrid, badge: nPending },
             { to: '/my-seat', label: 'My Seat', icon: Armchair },
             { to: '/seating', label: 'Floor Map', icon: Map },
             { to: '/meeting-rooms', label: 'Meeting Rooms', icon: CalendarClock },
@@ -40,6 +44,7 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
         {
           title: 'Workplace · Module A',
           items: [
+            { to: '/neighborhood', label: 'Seat Map', icon: LayoutGrid, badge: nPending },
             { to: '/seating', label: 'Floor Map', icon: Map },
             { to: '/directory', label: 'Employee Locator', icon: Users },
             { to: '/requests', label: 'Seat Requests', icon: Inbox, badge: pendingReq },
