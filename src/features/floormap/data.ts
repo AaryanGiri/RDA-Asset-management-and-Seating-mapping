@@ -1,19 +1,19 @@
 // ─────────────────────────────────────────────────────────────────────────────
-// AIWC Floor Map — the REAL floor-plan layout.
+// AIWC floor — a seating-first layout of the whole office.
 //
-// Seat positions come straight from the architect's drawing (FLOOR1_SEATS,
-// normalized 0–1 over a 920×731 viewBox) and the rooms from FLOOR1_ROOMS. People
-// from "Final Seating Data.xlsx" are placed at their real desks (Excel seat N =
-// drawing W{N}) and coloured by department. This reproduces the actual office
-// layout with a clean seat-map UI.
+// Every workstation, cabin, cell and special room from "Final Seating Data.xlsx"
+// (Office = AIWC) is laid out as department NEIGHBOURHOODS: each department is a
+// titled block of back-to-back desk benches, colour-coded, with its real people
+// seated. Cabins / cells / VR / overhead are drawn as private rooms. Toilets,
+// pantry and other non-seating spaces are intentionally omitted.
 // ─────────────────────────────────────────────────────────────────────────────
 
-import { FLOOR1_SEATS } from '@/features/seating/floor1Seats'
-import { FLOOR1_ROOMS } from '@/features/seating/floor1Rooms'
 import { AIWC_ROWS } from './aiwcRoster'
 
 export type NStatus = 'occupied' | 'vacant' | 'notice' | 'maintenance' | 'blocked'
 export type NType = 'employee' | 'intern' | 'partner'
+export type NZone = 'workstation' | 'cabin' | 'vr' | 'flex'
+export type RoomKind = NZone | 'meeting'
 
 export interface Department { id: string; name: string; short: string; color: string }
 
@@ -31,24 +31,28 @@ export interface NPerson {
 
 export interface NDesk {
   id: string
-  label: string // drawing seat number (W86, C1…)
-  seatType: 'workstation' | 'cabin'
-  pod: string // department
+  label: string
+  zone: NZone
+  pod: string // department / room name
   deptId: string
   deptColor: string
-  x: number // centre, in scaled viewBox px
+  x: number
   y: number
+  w: number
+  h: number
+  chair: 'top' | 'bottom'
   personId?: string
   status: NStatus
   note?: string
 }
 
 export interface Rect { x: number; y: number; w: number; h: number }
-export type FloorRoomKind = 'meeting' | 'service' | 'reception' | 'office' | 'open' | 'balcony' | 'courtyard' | 'cabin'
-export interface FloorRoom extends Rect { id: string; label: string; kind: FloorRoomKind }
+export interface Panel extends Rect { id: string; label: string; color: string; count: number }
+export interface NRoom extends Rect { id: string; label: string; sub?: string; kind: RoomKind; color: string }
 
 // ── departments (colour coding) ──────────────────────────────────────────────
 const DEPT_DEFS: [string, string, string, string][] = [
+  // id, display name, short, colour
   ['tech', 'TECH INNOVATION', 'Tech Innovation', '#6366F1'],
   ['fin', 'FINANCE', 'Finance', '#10B981'],
   ['water', 'WATER AND URBAN', 'Water & Urban', '#0EA5E9'],
@@ -64,11 +68,10 @@ const DEPT_DEFS: [string, string, string, string][] = [
   ['it', 'IT DEPARTMENT', 'IT', '#3B82F6'],
   ['talentacq', 'Talent Acquisition', 'Talent Acq.', '#D946EF'],
   ['coo', 'COO', 'COO', '#EF4444'],
-  ['open', 'Open / Unassigned', 'Open / Unassigned', '#94A3B8'],
+  ['open', 'Open Desks', 'Open / Unassigned', '#94A3B8'],
 ]
 export const DEPARTMENTS: Department[] = DEPT_DEFS.map(([id, name, short, color]) => ({ id, name, short, color }))
 const DEPT_BY_ID = new Map(DEPARTMENTS.map((d) => [d.id, d]))
-const deptColor = (id: string) => DEPT_BY_ID.get(id)?.color ?? '#94A3B8'
 
 function deptId(raw: string): string {
   const r = raw.trim().toLowerCase()
@@ -87,9 +90,11 @@ function deptId(raw: string): string {
   if (r.startsWith('compliance')) return 'compliance'
   if (r.startsWith('it')) return 'it'
   if (r === 'coo') return 'coo'
-  return 'open'
+  return 'open' // N/A + Vacant + anything else
 }
+const deptColor = (id: string) => DEPT_BY_ID.get(id)?.color ?? '#94A3B8'
 
+// ── parse roster into people ─────────────────────────────────────────────────
 function hue(name: string): number {
   let h = 0
   for (let i = 0; i < name.length; i++) h = (h * 31 + name.charCodeAt(i)) >>> 0
@@ -128,60 +133,157 @@ ROWS.forEach((r, i) => {
   PEOPLE.push(p)
   personByRow.set(r, p)
 })
+const personForRow = (r: Row) => personByRow.get(r)
 
-// seat number → workstation row
-const wsRowBySeat = new Map<string, Row>()
-for (const r of ROWS) if (r.seatcat === 'Workstation') wsRowBySeat.set(r.seat, r)
-// cabin-type rows (private offices), in sheet order, to map onto drawing cabins
-const cabinRows = ROWS.filter((r) => r.seatcat !== 'Workstation' && (r.seatcat.includes('Cabin') || r.seat.startsWith('LHS') || r.seat.startsWith('RHS')))
+// ── geometry ─────────────────────────────────────────────────────────────────
+const SW = 92 // seat pitch
+const DD = 54 // desk depth
+const CWID = SW - 10 // desk cell width
+const GAP_ROW = 20 // gap between benches
+const TITLE_H = 30
+const PAD = 16
+const PANEL_GAP = 34
+const PCOLS = 6
+const CANVAS_W = 1780
+const START_X = 40
+const START_Y = 40
 
-// ── geometry: real drawing coords, scaled up for legibility ──────────────────
-const DVBW = 920
-const DVBH = 731
-const SCALE = 3
-export const VBW = DVBW * SCALE
-export const VBH = DVBH * SCALE
+interface WsGroup { id: string; rows: Row[] }
 
-const NOTICE = new Set(['54', '97', '112', '10'])
+// workstation rows grouped by department (preserve seat order)
+const wsByDept = new Map<string, Row[]>()
+for (const r of ROWS) {
+  if (r.seatcat !== 'Workstation') continue
+  const id = deptId(r.deptRaw)
+  if (!wsByDept.has(id)) wsByDept.set(id, [])
+  wsByDept.get(id)!.push(r)
+}
+// order departments by the declared order, largest first among leftovers
+const wsGroups: WsGroup[] = DEPARTMENTS
+  .filter((d) => wsByDept.has(d.id))
+  .map((d) => ({ id: d.id, rows: wsByDept.get(d.id)! }))
 
-let cabinCursor = 0
-export const BASE_DESKS: NDesk[] = FLOOR1_SEATS.map((s) => {
-  const isCabin = s.seatType === 'cabin'
-  const numMatch = /^W(\d+)$/.exec(s.seatNumber)
-  let row: Row | undefined
-  if (isCabin) row = cabinRows[cabinCursor++]
-  else if (numMatch) row = wsRowBySeat.get(numMatch[1])
+const PANELS: Panel[] = []
+const wsDesks: NDesk[] = []
 
-  const person = row && !isVacant(row) ? personByRow.get(row) : undefined
-  const dId = person ? person.deptId : row ? deptId(row.deptRaw) : 'open'
-  const onNotice = numMatch ? NOTICE.has(numMatch[1]) : false
-  return {
-    id: `desk_${s.seatNumber}`,
-    label: s.seatNumber,
-    seatType: isCabin ? 'cabin' : 'workstation',
-    pod: person ? (DEPT_BY_ID.get(dId)?.short ?? 'AIWC') : 'Unassigned',
-    deptId: dId,
-    deptColor: deptColor(dId),
-    x: s.x * VBW,
-    y: s.y * VBH,
-    personId: person?.id,
-    status: person ? (onNotice ? 'notice' : 'occupied') : 'vacant',
-    note: person ? (onNotice ? 'On notice — last working day within 30 days' : undefined) : 'Vacant',
+let curX = START_X
+let curY = START_Y
+let rowMaxH = 0
+
+for (const g of wsGroups) {
+  const n = g.rows.length
+  const cols = Math.min(n, PCOLS)
+  const nRows = Math.ceil(n / cols)
+  const benches = Math.ceil(nRows / 2)
+  const contentH = benches * (2 * DD) + (benches - 1) * GAP_ROW - (nRows % 2 === 1 ? DD : 0) + (nRows === 1 ? 0 : 0)
+  const panelW = cols * SW + 2 * PAD
+  const panelH = TITLE_H + Math.max(DD, contentH) + 2 * PAD
+  if (curX + panelW > CANVAS_W + START_X) {
+    curX = START_X
+    curY += rowMaxH + PANEL_GAP
+    rowMaxH = 0
   }
-})
+  const px = curX
+  const py = curY
+  const color = deptColor(g.id)
+  PANELS.push({ id: `panel_${g.id}`, label: DEPT_BY_ID.get(g.id)?.name ?? g.id, color, count: n, x: px, y: py, w: panelW, h: panelH })
 
-// ── rooms (real drawing, scaled) ─────────────────────────────────────────────
-export const ROOMS: FloorRoom[] = FLOOR1_ROOMS.map((r) => ({
-  id: r.id,
-  label: r.label,
-  kind: r.kind as FloorRoomKind,
-  x: r.x * SCALE,
-  y: r.y * SCALE,
-  w: r.w * SCALE,
-  h: r.h * SCALE,
-}))
+  g.rows.forEach((r, i) => {
+    const col = i % cols
+    const row = Math.floor(i / cols)
+    const bench = Math.floor(row / 2)
+    const within = row % 2
+    const cellX = px + PAD + col * SW + (SW - CWID) / 2
+    const cellY = py + TITLE_H + bench * (2 * DD + GAP_ROW) + within * DD
+    const chair: NDesk['chair'] = within === 0 ? 'top' : 'bottom'
+    const vac = isVacant(r)
+    const person = vac ? undefined : personForRow(r)
+    wsDesks.push({
+      id: `desk_ws_${g.id}_${r.seat}`,
+      label: r.seat,
+      zone: 'workstation',
+      pod: DEPT_BY_ID.get(g.id)?.short ?? g.id,
+      deptId: g.id,
+      deptColor: color,
+      x: cellX, y: cellY, w: CWID, h: DD, chair,
+      personId: person?.id,
+      status: vac ? 'vacant' : 'occupied',
+      note: vac ? 'Available' : undefined,
+    })
+  })
 
-export const PLATE: Rect = { x: 0, y: 0, w: VBW, h: VBH }
+  curX += panelW + PANEL_GAP
+  rowMaxH = Math.max(rowMaxH, panelH)
+}
+
+const panelsBottom = curY + rowMaxH
+
+// ── rooms: cabins, cells, VR, overhead ───────────────────────────────────────
+function roomKey(r: Row): { key: string; kind: RoomKind; label: string } {
+  const s = r.seat
+  if (r.seatcat === 'VR Room' || s === 'VR Room') return { key: 'VR Room', kind: 'vr', label: 'VR Room' }
+  if (r.seatcat === 'Overhead' || s === 'Workstation') return { key: 'Overhead', kind: 'flex', label: 'Overhead / Flex' }
+  if (s === 'COS Cell') return { key: 'COS Cell', kind: 'cabin', label: 'COS Cell' }
+  if (s === 'CMD Cell') return { key: 'CMD Cell', kind: 'cabin', label: 'CMD Cell' }
+  return { key: s, kind: 'cabin', label: s } // LHS-x / RHS-x / Manthan
+}
+
+const roomGroups = new Map<string, { kind: RoomKind; label: string; rows: Row[] }>()
+for (const r of ROWS) {
+  if (r.seatcat === 'Workstation') continue
+  const { key, kind, label } = roomKey(r)
+  if (!roomGroups.has(key)) roomGroups.set(key, { kind, label, rows: [] })
+  roomGroups.get(key)!.rows.push(r)
+}
+// order rooms: multi-occupant first, then single cabins
+const roomList = [...roomGroups.values()].sort((a, b) => b.rows.length - a.rows.length || a.label.localeCompare(b.label))
+
+const ROOMS: NRoom[] = []
+const roomDesks: NDesk[] = []
+let rx = START_X
+let ry = panelsBottom + 46
+let rRowH = 0
+const ROOM_GAP = 30
+
+for (let i = 0; i < roomList.length; i++) {
+  const g = roomList[i]
+  const cols = Math.min(g.rows.length, 3)
+  const roomW = cols * SW + 2 * PAD
+  const roomH = TITLE_H + DD + 2 * PAD
+  if (rx + roomW > CANVAS_W + START_X) { rx = START_X; ry += rRowH + ROOM_GAP; rRowH = 0 }
+  // colour by the dominant department in the room
+  const domId = deptId(g.rows.find((r) => !isVacant(r))?.deptRaw ?? 'open')
+  const color = deptColor(domId)
+  const room: NRoom = { id: `room_${g.label.replace(/\W+/g, '_')}`, label: g.label, kind: g.kind, color, x: rx, y: ry, w: roomW, h: roomH, sub: `${g.rows.length} seat${g.rows.length > 1 ? 's' : ''}` }
+  ROOMS.push(room)
+  g.rows.forEach((r, j) => {
+    const cellX = rx + PAD + j * SW + (SW - CWID) / 2
+    const cellY = ry + TITLE_H + PAD
+    const vac = isVacant(r)
+    const person = vac ? undefined : personForRow(r)
+    const id = deptId(r.deptRaw)
+    roomDesks.push({
+      id: `desk_room_${room.id}_${j}`,
+      label: g.label === 'VR Room' ? `VR-${j + 1}` : g.label === 'Overhead' ? `OH-${j + 1}` : g.label,
+      zone: g.kind === 'vr' ? 'vr' : g.kind === 'flex' ? 'flex' : 'cabin',
+      pod: g.label,
+      deptId: id,
+      deptColor: deptColor(id),
+      x: cellX, y: cellY, w: CWID, h: DD, chair: 'top',
+      personId: person?.id,
+      status: vac ? 'vacant' : 'occupied',
+      note: vac ? 'Available' : undefined,
+    })
+  })
+  rx += roomW + ROOM_GAP
+  rRowH = Math.max(rRowH, roomH)
+}
+
+export const BASE_DESKS: NDesk[] = [...wsDesks, ...roomDesks]
+export { PANELS, ROOMS }
+
+export const VBW = CANVAS_W + START_X * 2
+export const VBH = ry + rRowH + START_Y
 
 export const DEFAULT_PERSONA = (PEOPLE.find((p) => p.name.toLowerCase().startsWith('aryan giri')) ?? PEOPLE[0]).id
 
