@@ -24,7 +24,7 @@ export function FloorMapPage() {
   const setPersona = useFloorMap((s) => s.setPersona)
   const reset = useFloorMap((s) => s.reset)
 
-  const [colorMode, setColorMode] = useState<ColorMode>('department')
+  const [colorMode, setColorMode] = useState<ColorMode>('status')
   const [active, setActive] = useState<string | null>(null)
   const [selectedId, setSelectedId] = useState<string>()
   const [focusId, setFocusId] = useState<string>()

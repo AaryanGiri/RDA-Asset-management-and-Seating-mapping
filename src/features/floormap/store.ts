@@ -157,7 +157,7 @@ export const useFloorMap = create<NeighborhoodState>()(
     }),
     {
       name: 'aiwc.floormap',
-      version: 3,
+      version: 4,
       partialize: (s) => ({ desks: s.desks, requests: s.requests, personaId: s.personaId }),
       migrate: () => ({ desks: clone(BASE_DESKS), requests: [], personaId: DEFAULT_PERSONA }) as Partial<NeighborhoodState>,
     },
