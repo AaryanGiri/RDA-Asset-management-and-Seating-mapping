@@ -24,7 +24,7 @@ export function NeighborhoodPage() {
   const setPersona = useNeighborhood((s) => s.setPersona)
   const reset = useNeighborhood((s) => s.reset)
 
-  const [colorMode, setColorMode] = useState<ColorMode>('status')
+  const [colorMode, setColorMode] = useState<ColorMode>('department')
   const [active, setActive] = useState<string | null>(null)
   const [selectedId, setSelectedId] = useState<string>()
   const [focusId, setFocusId] = useState<string>()
@@ -64,7 +64,7 @@ export function NeighborhoodPage() {
     if (query.trim()) return new Set(searchResults.map((r) => r.desk.id))
     if (!active) return null
     if (colorMode === 'status') return new Set(desks.filter((d) => d.status === active).map((d) => d.id))
-    if (colorMode === 'zone') return new Set(desks.filter((d) => d.zone === active).map((d) => d.id))
+    if (colorMode === 'department') return new Set(desks.filter((d) => d.deptId === active).map((d) => d.id))
     return new Set(desks.filter((d) => d.personId && peopleMap.get(d.personId)?.type === active).map((d) => d.id))
   }, [query, searchResults, active, colorMode, desks])
 
@@ -96,9 +96,9 @@ export function NeighborhoodPage() {
             value={colorMode}
             onChange={(v) => { setColorMode(v); setActive(null) }}
             options={[
+              { value: 'department', label: <span className="flex items-center gap-1.5"><Palette className="h-3.5 w-3.5" />Department</span> },
               { value: 'status', label: <span className="flex items-center gap-1.5"><CircleDot className="h-3.5 w-3.5" />Status</span> },
-              { value: 'type', label: <span className="flex items-center gap-1.5"><Palette className="h-3.5 w-3.5" />Type</span> },
-              { value: 'zone', label: <span className="flex items-center gap-1.5"><Building2 className="h-3.5 w-3.5" />Space</span> },
+              { value: 'type', label: <span className="flex items-center gap-1.5"><Users2 className="h-3.5 w-3.5" />Type</span> },
             ]}
           />
         </div>

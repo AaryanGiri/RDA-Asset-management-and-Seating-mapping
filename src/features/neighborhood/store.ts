@@ -157,7 +157,7 @@ export const useNeighborhood = create<NeighborhoodState>()(
     }),
     {
       name: 'aiwc.neighborhood',
-      version: 3, // bumped when the hall layout changed — reseed desks
+      version: 4, // full AIWC floor (department neighbourhoods) — reseed desks
       partialize: (s) => ({ desks: s.desks, requests: s.requests, personaId: s.personaId }),
       migrate: () => ({ desks: clone(BASE_DESKS), requests: [], personaId: DEFAULT_PERSONA }) as Partial<NeighborhoodState>,
     },
