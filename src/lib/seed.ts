@@ -357,6 +357,7 @@ function makeMeetingRooms(): MeetingRoom[] {
         label: r.label.replace(/\b(\w)(\w*)/g, (_, a, b) => a + b.toLowerCase()),
         floorId,
         capacity: pick([4, 6, 6, 8, 10, 12]),
+        extension: (2000 + n * 3).toString(),
       })
       n++
     }

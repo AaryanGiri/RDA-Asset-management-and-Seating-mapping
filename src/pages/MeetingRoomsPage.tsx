@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react'
 import {
   ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid, Cell,
 } from 'recharts'
-import { CalendarClock, Users2, Plus, Check, DoorOpen, Clock3, Bell } from 'lucide-react'
+import { CalendarClock, Users2, Plus, Check, DoorOpen, Clock3, Bell, Phone } from 'lucide-react'
 import { Page } from '@/components/Page'
 import { PageHeader, Segmented, Modal, Field, EmptyState } from '@/components/ui'
 import { ChartCard, ChartTooltip } from '@/components/charts'
@@ -134,7 +134,7 @@ export function MeetingRoomsPage() {
                 <div className="flex items-start justify-between gap-2">
                   <div>
                     <p className="text-sm font-semibold text-content">{r.name}</p>
-                    <p className="text-2xs text-muted">{r.label} · <Users2 className="inline h-3 w-3" /> {r.capacity} pax</p>
+                    <p className="text-2xs text-muted">{r.label} · <Users2 className="inline h-3 w-3" /> {r.capacity} pax · <Phone className="inline h-3 w-3" /> Ext {r.extension}</p>
                   </div>
                   <span className={cn('chip', m.bg, m.text)}><span className={cn('h-1.5 w-1.5 rounded-full', m.dot)} />{m.label}</span>
                 </div>

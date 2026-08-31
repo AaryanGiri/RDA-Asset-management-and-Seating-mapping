@@ -80,6 +80,7 @@ export interface MeetingRoom {
   label: string // human name from the plan
   floorId: string
   capacity: number
+  extension: string // telephone extension to reach the room directly
 }
 
 export interface MeetingBooking {
