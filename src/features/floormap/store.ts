@@ -48,7 +48,7 @@ interface NeighborhoodState {
 const clone = (d: NDesk[]) => d.map((x) => ({ ...x }))
 const findByPerson = (desks: NDesk[], personId: string) => desks.find((d) => d.personId === personId)
 
-export const useNeighborhood = create<NeighborhoodState>()(
+export const useFloorMap = create<NeighborhoodState>()(
   persist(
     (set, get) => ({
       desks: clone(BASE_DESKS),
@@ -156,8 +156,8 @@ export const useNeighborhood = create<NeighborhoodState>()(
       reset: () => set({ desks: clone(BASE_DESKS), requests: [], personaId: DEFAULT_PERSONA }),
     }),
     {
-      name: 'aiwc.neighborhood',
-      version: 5, // reseed crop after full-floor detour
+      name: 'aiwc.floormap',
+      version: 1,
       partialize: (s) => ({ desks: s.desks, requests: s.requests, personaId: s.personaId }),
       migrate: () => ({ desks: clone(BASE_DESKS), requests: [], personaId: DEFAULT_PERSONA }) as Partial<NeighborhoodState>,
     },

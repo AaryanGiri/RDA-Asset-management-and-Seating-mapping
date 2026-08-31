@@ -1,7 +1,7 @@
 import { Routes, Route, Navigate } from 'react-router-dom'
 import { Shell } from '@/components/Shell'
 import { DashboardPage } from '@/pages/DashboardPage'
-import { SeatingPage } from '@/pages/SeatingPage'
+import { FloorMapPage } from '@/pages/FloorMapPage'
 import { NeighborhoodPage } from '@/pages/NeighborhoodPage'
 import { DirectoryPage } from '@/pages/DirectoryPage'
 import { SeatingAnalyticsPage } from '@/pages/SeatingAnalyticsPage'
@@ -25,7 +25,7 @@ export default function App() {
       <Route element={<Shell />}>
         <Route path="/" element={<DashboardPage />} />
         <Route path="/neighborhood" element={<NeighborhoodPage />} />
-        <Route path="/seating" element={<SeatingPage />} />
+        <Route path="/seating" element={<FloorMapPage />} />
         <Route path="/my-seat" element={<MySeatPage />} />
         <Route path="/meeting-rooms" element={<MeetingRoomsPage />} />
         <Route path="/requests" element={<AdminOnly><RequestsPage /></AdminOnly>} />

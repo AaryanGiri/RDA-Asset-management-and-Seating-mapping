@@ -3,10 +3,10 @@ import { Check, X, Clock, Inbox, ArrowLeftRight, MoveRight } from 'lucide-react'
 import { useUI } from '@/lib/uiStore'
 import { cn } from '@/lib/utils'
 import { relativeTime } from '@/lib/utils'
-import { SEAT_STATUS, TYPE_META, ZONE_META, STATUS_ORDER, type ColorMode } from './meta'
-import type { NDesk, NPerson, NStatus, NType, NZone } from './data'
+import { SEAT_STATUS, TYPE_META, STATUS_ORDER, type ColorMode } from './meta'
+import { DEPARTMENTS, type NDesk, type NPerson, type NStatus, type NType } from './data'
 import type { NRequest } from './store'
-import { useNeighborhood } from './store'
+import { useFloorMap } from './store'
 
 interface LegendItem { key: string; label: string; fill: string; count: number }
 
@@ -25,10 +25,10 @@ export function NeighborhoodLegend({
       desks.forEach((d) => (c[d.status] = (c[d.status] ?? 0) + 1))
       return STATUS_ORDER.filter((s) => c[s]).map((s) => ({ key: s, label: SEAT_STATUS[s as NStatus].label, fill: SEAT_STATUS[s as NStatus].fill, count: c[s] }))
     }
-    if (colorMode === 'zone') {
+    if (colorMode === 'department') {
       const c: Record<string, number> = {}
-      desks.forEach((d) => (c[d.zone] = (c[d.zone] ?? 0) + 1))
-      return (Object.keys(ZONE_META) as NZone[]).filter((z) => c[z]).map((z) => ({ key: z, label: ZONE_META[z].label, fill: ZONE_META[z].fill, count: c[z] }))
+      desks.forEach((d) => (c[d.deptId] = (c[d.deptId] ?? 0) + 1))
+      return DEPARTMENTS.filter((d) => c[d.id]).map((d) => ({ key: d.id, label: d.short, fill: d.color, count: c[d.id] }))
     }
     const c: Record<string, number> = {}
     desks.forEach((d) => {
@@ -38,7 +38,7 @@ export function NeighborhoodLegend({
     return (Object.keys(TYPE_META) as NType[]).filter((t) => c[t]).map((t) => ({ key: t, label: TYPE_META[t].label, fill: TYPE_META[t].fill, count: c[t] }))
   }, [desks, people, colorMode])
 
-  const title = colorMode === 'status' ? 'Seat status' : colorMode === 'zone' ? 'Space type' : 'Workforce type'
+  const title = colorMode === 'status' ? 'Seat status' : colorMode === 'department' ? 'Departments' : 'Workforce type'
 
   return (
     <div className="card p-3.5">
@@ -103,9 +103,9 @@ function Row({ label, value, tone = 'text-content' }: { label: string; value: nu
 
 // ── Admin requests inbox ─────────────────────────────────────────────────────
 export function RequestsInbox({ people, onFocusDesk }: { people: Map<string, NPerson>; onFocusDesk: (id: string) => void }) {
-  const requests = useNeighborhood((s) => s.requests)
-  const approve = useNeighborhood((s) => s.approveRequest)
-  const reject = useNeighborhood((s) => s.rejectRequest)
+  const requests = useFloorMap((s) => s.requests)
+  const approve = useFloorMap((s) => s.approveRequest)
+  const reject = useFloorMap((s) => s.rejectRequest)
   const toast = useUI((s) => s.toast)
   const pending = requests.filter((r) => r.status === 'pending')
 

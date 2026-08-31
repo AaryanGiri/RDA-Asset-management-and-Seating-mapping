@@ -4,27 +4,27 @@ import { Segmented, Avatar } from '@/components/ui'
 import { useData } from '@/lib/store'
 import { useUI } from '@/lib/uiStore'
 import { cn } from '@/lib/utils'
-import { NeighborhoodMap } from '@/features/neighborhood/NeighborhoodMap'
-import { NeighborhoodLegend, SummaryCard, RequestsInbox } from '@/features/neighborhood/panels'
-import { DeskDetail } from '@/features/neighborhood/DeskDetail'
-import { useNeighborhood } from '@/features/neighborhood/store'
-import { PEOPLE, NEIGHBORHOOD, type NPerson } from '@/features/neighborhood/data'
-import { SEAT_STATUS, type ColorMode } from '@/features/neighborhood/meta'
+import { FloorMapCanvas } from '@/features/floormap/FloorMapCanvas'
+import { NeighborhoodLegend, SummaryCard, RequestsInbox } from '@/features/floormap/panels'
+import { DeskDetail } from '@/features/floormap/DeskDetail'
+import { useFloorMap } from '@/features/floormap/store'
+import { PEOPLE, NEIGHBORHOOD, type NPerson } from '@/features/floormap/data'
+import { SEAT_STATUS, type ColorMode } from '@/features/floormap/meta'
 
 const peopleMap = new Map<string, NPerson>(PEOPLE.map((p) => [p.id, p]))
 
-export function NeighborhoodPage() {
+export function FloorMapPage() {
   const role = useData((s) => s.role)
   const setRole = useData((s) => s.setRole)
   const toast = useUI((s) => s.toast)
 
-  const desks = useNeighborhood((s) => s.desks)
-  const requests = useNeighborhood((s) => s.requests)
-  const personaId = useNeighborhood((s) => s.personaId)
-  const setPersona = useNeighborhood((s) => s.setPersona)
-  const reset = useNeighborhood((s) => s.reset)
+  const desks = useFloorMap((s) => s.desks)
+  const requests = useFloorMap((s) => s.requests)
+  const personaId = useFloorMap((s) => s.personaId)
+  const setPersona = useFloorMap((s) => s.setPersona)
+  const reset = useFloorMap((s) => s.reset)
 
-  const [colorMode, setColorMode] = useState<ColorMode>('status')
+  const [colorMode, setColorMode] = useState<ColorMode>('department')
   const [active, setActive] = useState<string | null>(null)
   const [selectedId, setSelectedId] = useState<string>()
   const [focusId, setFocusId] = useState<string>()
@@ -64,7 +64,7 @@ export function NeighborhoodPage() {
     if (query.trim()) return new Set(searchResults.map((r) => r.desk.id))
     if (!active) return null
     if (colorMode === 'status') return new Set(desks.filter((d) => d.status === active).map((d) => d.id))
-    if (colorMode === 'zone') return new Set(desks.filter((d) => d.zone === active).map((d) => d.id))
+    if (colorMode === 'department') return new Set(desks.filter((d) => d.deptId === active).map((d) => d.id))
     return new Set(desks.filter((d) => d.personId && peopleMap.get(d.personId)?.type === active).map((d) => d.id))
   }, [query, searchResults, active, colorMode, desks])
 
@@ -96,9 +96,9 @@ export function NeighborhoodPage() {
             value={colorMode}
             onChange={(v) => { setColorMode(v); setActive(null) }}
             options={[
+              { value: 'department', label: <span className="flex items-center gap-1.5"><Palette className="h-3.5 w-3.5" />Department</span> },
               { value: 'status', label: <span className="flex items-center gap-1.5"><CircleDot className="h-3.5 w-3.5" />Status</span> },
-              { value: 'type', label: <span className="flex items-center gap-1.5"><Palette className="h-3.5 w-3.5" />Type</span> },
-              { value: 'zone', label: <span className="flex items-center gap-1.5"><Building2 className="h-3.5 w-3.5" />Space</span> },
+              { value: 'type', label: <span className="flex items-center gap-1.5"><Users2 className="h-3.5 w-3.5" />Type</span> },
             ]}
           />
         </div>
@@ -185,7 +185,7 @@ export function NeighborhoodPage() {
         </aside>
 
         <div className="relative min-h-0 flex-1">
-          <NeighborhoodMap
+          <FloorMapCanvas
             desks={desks}
             people={peopleMap}
             selectedId={selectedId}
