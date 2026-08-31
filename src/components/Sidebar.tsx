@@ -1,7 +1,7 @@
 import { NavLink, useLocation } from 'react-router-dom'
 import {
   LayoutDashboard, Map, Users, PieChart, Boxes,
-  RotateCcw, Sparkles, Inbox, CalendarClock, Armchair, LayoutGrid,
+  RotateCcw, Sparkles, Inbox, CalendarClock, Armchair, LayoutGrid, ClipboardList,
 } from 'lucide-react'
 import { motion } from 'framer-motion'
 import { LogoFull } from './Logo'
@@ -22,9 +22,11 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
   const toast = useUI((s) => s.toast)
 
   const nRequests = useNeighborhood((s) => s.requests)
+  const assetRequests = useData((s) => s.assetRequests)
   const noticeCount = seats.filter((s) => s.status === 'notice').length
   const pendingReq = seatRequests.filter((r) => r.status === 'pending').length
   const nPending = nRequests.filter((r) => r.status === 'pending').length
+  const nAssetPending = assetRequests.filter((r) => r.stage === 'pc-review' || r.stage === 'admin-review').length
 
   const groups: NavGroup[] = role === 'employee'
     ? [
@@ -56,6 +58,7 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
           title: 'Assets · Module B',
           items: [
             { to: '/assets', label: 'Asset Register', icon: Boxes, end: true },
+            { to: '/asset-requests', label: 'Asset Requests', icon: ClipboardList, badge: nAssetPending },
           ],
         },
       ]

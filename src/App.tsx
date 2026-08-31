@@ -7,6 +7,7 @@ import { DirectoryPage } from '@/pages/DirectoryPage'
 import { SeatingAnalyticsPage } from '@/pages/SeatingAnalyticsPage'
 import { AssetsPage } from '@/pages/AssetsPage'
 import { AssetPassport } from '@/pages/AssetPassport'
+import { AssetRequestsPage } from '@/pages/AssetRequestsPage'
 import { MySeatPage } from '@/pages/MySeatPage'
 import { RequestsPage } from '@/pages/RequestsPage'
 import { MeetingRoomsPage } from '@/pages/MeetingRoomsPage'
@@ -32,6 +33,7 @@ export default function App() {
         <Route path="/directory" element={<AdminOnly><DirectoryPage /></AdminOnly>} />
         <Route path="/seating-analytics" element={<AdminOnly><SeatingAnalyticsPage /></AdminOnly>} />
         <Route path="/assets" element={<AdminOnly><AssetsPage /></AdminOnly>} />
+        <Route path="/asset-requests" element={<AdminOnly><AssetRequestsPage /></AdminOnly>} />
         <Route path="/assets/:id" element={<AdminOnly><AssetPassport /></AdminOnly>} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Route>

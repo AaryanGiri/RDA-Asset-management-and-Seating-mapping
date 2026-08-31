@@ -17,6 +17,9 @@ import type {
   Asset,
   AssetImageKind,
   AssetPrimaryCategory,
+  AssetRequest,
+  AssetRequestType,
+  PcAction,
   Employee,
   MeetingBooking,
   MeetingRoom,
@@ -58,6 +61,7 @@ interface DataState {
   meetingRooms: MeetingRoom[]
   meetingBookings: MeetingBooking[]
   seatRequests: SeatRequest[]
+  assetRequests: AssetRequest[]
 
   // access / persona (front-end only)
   role: UserRole
@@ -129,6 +133,15 @@ interface DataState {
     assignedEmployeeId?: string; officeId: string; location?: string; responsiblePerson: string
     remarks?: string; deploymentImage?: string
   }) => string
+
+  // asset request / action workflow (Section 11.7 — OM → PC → Admin)
+  raiseAssetRequest: (input: {
+    type: AssetRequestType; reason: string; remarks?: string; raisedBy?: string; imageHue?: number
+    category?: AssetPrimaryCategory; subcategory?: string; name?: string; officeId?: string
+    assetRef?: string; assetCode?: string
+  }) => string
+  pcReviewAssetRequest: (id: string, recommendation: string, action: PcAction, pcBy?: string) => void
+  adminDecideAssetRequest: (id: string, decision: 'approved' | 'rejected', note?: string, adminBy?: string) => Promise<void>
 
   // notifications
   markNotificationRead: (id: string) => void
@@ -596,6 +609,54 @@ export const useData = create<DataState>()(
         return id
       },
 
+      // ── asset request / action workflow (Section 11.7) ──────────────────────
+      raiseAssetRequest: (input) => {
+        const id = uid('areq')
+        const req: AssetRequest = {
+          id, type: input.type,
+          category: input.category, subcategory: input.subcategory, name: input.name, officeId: input.officeId,
+          assetRef: input.assetRef, assetCode: input.assetCode,
+          raisedBy: input.raisedBy ?? 'Office Manager', reason: input.reason, remarks: input.remarks, imageHue: input.imageHue,
+          requestDate: new Date().toISOString(), stage: 'pc-review',
+        }
+        set((s) => ({ assetRequests: [req, ...s.assetRequests] }))
+        get().pushNotification({ kind: 'asset', tone: 'info', title: 'Asset request raised', body: `${input.type === 'new' ? 'New asset' : 'Disposal'} · ${input.name ?? input.assetCode ?? ''} — awaiting PC review.` })
+        return id
+      },
+
+      pcReviewAssetRequest: (id, recommendation, action, pcBy) => {
+        const now = new Date().toISOString()
+        set((s) => ({
+          assetRequests: s.assetRequests.map((r) => (r.id === id ? { ...r, stage: 'admin-review', pcRecommendation: recommendation, pcAction: action, pcBy: pcBy ?? 'Purchase Committee', pcAt: now } : r)),
+        }))
+        const req = get().assetRequests.find((r) => r.id === id)
+        get().pushNotification({ kind: 'asset', tone: 'info', title: 'PC recommendation submitted', body: `${req?.name ?? req?.assetCode ?? 'Request'} · PC recommends "${action}" — awaiting Admin decision.` })
+      },
+
+      adminDecideAssetRequest: async (id, decision, note, adminBy) => {
+        await latency()
+        const now = new Date().toISOString()
+        const req = get().assetRequests.find((r) => r.id === id)
+        if (!req) return
+        const adminAction = decision === 'rejected' ? 'Rejected' : req.type === 'disposal' ? 'Approved for disposal' : 'Approved for purchase'
+        // Apply an approved disposal to the linked asset
+        if (decision === 'approved' && req.type === 'disposal' && req.assetRef) {
+          set((s) => ({
+            assets: s.assets.map((a) => (a.id === req.assetRef ? {
+              ...a, status: 'discarded', actionTaken: 'Approved for disposal',
+              lifecycle: [...a.lifecycle,
+                { id: uid('al'), type: 'action', title: 'Admin action', detail: `Disposal approved (PC + Admin review)${note ? ` — ${note}` : ''}`, actor: adminBy ?? actorName, timestamp: now },
+                { id: uid('al'), type: 'discarded', title: 'Discarded', detail: 'Removed from the active register', actor: adminBy ?? actorName, timestamp: now },
+              ],
+            } : a)),
+          }))
+        }
+        set((s) => ({
+          assetRequests: s.assetRequests.map((r) => (r.id === id ? { ...r, stage: decision, adminAction, adminReason: note, adminBy: adminBy ?? actorName, adminAt: now } : r)),
+        }))
+        get().pushNotification({ kind: 'asset', tone: decision === 'approved' ? 'success' : 'warning', title: `Asset request ${decision}`, body: `${req.name ?? req.assetCode ?? 'Request'} · ${adminAction}. Office Manager notified.` })
+      },
+
       markNotificationRead: (id) => set((s) => ({ notifications: s.notifications.map((n) => (n.id === id ? { ...n, read: true } : n)) })),
       markAllRead: () => set((s) => ({ notifications: s.notifications.map((n) => ({ ...n, read: true })) })),
       pushNotification: (n) => set((s) => ({ notifications: [{ ...n, id: uid('ntf'), timestamp: new Date().toISOString(), read: false }, ...s.notifications].slice(0, 40) })),
@@ -608,7 +669,7 @@ export const useData = create<DataState>()(
     }),
     {
       name: 'locus.db',
-      version: 17,
+      version: 18,
       // v16 replaces the asset module with the Section 7 model (categories +
       // subcategories, assignment, images, remarks, lifecycle) and drops the old
       // movements / verifications / QR. Returning an empty slice rebuilds
@@ -619,7 +680,7 @@ export const useData = create<DataState>()(
         employees: s.employees, seats: s.seats, seatEvents: s.seatEvents,
         categories: s.categories, assets: s.assets, notifications: s.notifications,
         floorPlans: s.floorPlans, meetingRooms: s.meetingRooms, meetingBookings: s.meetingBookings,
-        seatRequests: s.seatRequests, role: s.role, personaId: s.personaId,
+        seatRequests: s.seatRequests, assetRequests: s.assetRequests, role: s.role, personaId: s.personaId,
       }),
     },
   ),

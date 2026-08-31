@@ -205,6 +205,43 @@ export interface Asset {
   lifecycle: AssetLifecycleEvent[]
 }
 
+// ── Asset request / action workflow (Section 11.7) ───────────────────────────
+// Three-role review flow: Office Manager raises → Purchase Committee (PC /
+// Project Coordinator) recommends → Admin takes the final decision.
+export type AssetRequestType = 'new' | 'disposal'
+export type AssetRequestStage = 'pc-review' | 'admin-review' | 'approved' | 'rejected'
+export type PcAction = 'approve' | 'reject' | 'replace' | 'discard'
+
+export interface AssetRequest {
+  id: string
+  type: AssetRequestType
+  // new-asset request
+  category?: AssetPrimaryCategory
+  subcategory?: string
+  name?: string
+  officeId?: string
+  // disposal request (existing asset)
+  assetRef?: string // internal asset.id
+  assetCode?: string // display Asset ID
+  // common
+  raisedBy: string // Office Manager
+  reason: string
+  remarks?: string
+  imageHue?: number // placeholder condition image
+  requestDate: string
+  stage: AssetRequestStage
+  // PC review
+  pcRecommendation?: string
+  pcAction?: PcAction
+  pcBy?: string
+  pcAt?: string
+  // Admin decision
+  adminAction?: string // e.g. "Approved for purchase" / "Approved for disposal" / "Rejected"
+  adminReason?: string
+  adminBy?: string
+  adminAt?: string
+}
+
 export interface Notification {
   id: string
   kind: 'seat' | 'asset' | 'system'

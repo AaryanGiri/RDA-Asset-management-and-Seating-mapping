@@ -5,6 +5,8 @@ import {
 import type {
   Asset,
   AssetCategory,
+  AssetPrimaryCategory,
+  AssetRequest,
   AssetStatus,
   Department,
   Employee,
@@ -100,6 +102,7 @@ export interface SeedData {
   meetingRooms: MeetingRoom[]
   meetingBookings: MeetingBooking[]
   seatRequests: SeatRequest[]
+  assetRequests: AssetRequest[]
 }
 
 function makeEmployees(count: number): Employee[] {
@@ -459,6 +462,46 @@ function makeSeatRequests(employees: Employee[], seats: Seat[]): SeatRequest[] {
   return out
 }
 
+// ── Asset request / action workflow samples (Section 11.7) ───────────────────
+const OFFICE_MANAGERS = ['R. Kapoor (Office Manager)', 'S. Fernandes (Office Manager)', 'P. Chandra (Office Manager)']
+const PC_MEMBERS = ['A. Menon (PC)', 'N. Sinha (PC)', 'D. Osei (PC)']
+function makeAssetRequests(assets: Asset[], employees: Employee[]): AssetRequest[] {
+  const active = employees.filter((e) => e.employmentStatus === 'active')
+  const defective = assets.filter((a) => a.status === 'defective')
+  const out: AssetRequest[] = []
+
+  // 1) New-asset request, awaiting PC review
+  out.push({
+    id: uid('areq'), type: 'new', category: 'tangible', subcategory: 'Laptop',
+    name: 'Dell Latitude 7440 — new joiner', officeId: 'hq',
+    raisedBy: OFFICE_MANAGERS[0], reason: 'New joiner in Tech Innovation needs a laptop',
+    remarks: 'Required within 1 week', imageHue: 210,
+    requestDate: daysAgoISO(2), stage: 'pc-review',
+  })
+  // 2) Disposal request, PC recommended discard → awaiting Admin decision
+  const d0 = defective[0]
+  out.push({
+    id: uid('areq'), type: 'disposal', assetRef: d0?.id, assetCode: d0?.assetId ?? 'RDA-CHA-0151',
+    raisedBy: OFFICE_MANAGERS[1], reason: d0?.remarks ?? 'Beyond economic repair',
+    remarks: 'Condition image attached', imageHue: 12,
+    requestDate: daysAgoISO(4), stage: 'admin-review',
+    pcRecommendation: 'Repair not cost-effective; recommend disposal and replacement.',
+    pcAction: 'discard', pcBy: PC_MEMBERS[0], pcAt: daysAgoISO(1),
+  })
+  // 3) New-asset request, approved by Admin
+  out.push({
+    id: uid('areq'), type: 'new', category: 'intangible', subcategory: 'Software',
+    name: 'AutoCAD 2024 license', officeId: 'hq',
+    raisedBy: OFFICE_MANAGERS[2], reason: 'Design team license renewal', imageHue: 150,
+    requestDate: daysAgoISO(9), stage: 'approved',
+    pcRecommendation: 'Within budget; approve procurement.', pcAction: 'approve', pcBy: PC_MEMBERS[1], pcAt: daysAgoISO(7),
+    adminAction: 'Approved for purchase', adminBy: actorNameSeed, adminAt: daysAgoISO(6),
+  })
+  void active
+  return out
+}
+const actorNameSeed = 'A. Menon (Admin)'
+
 export function buildSeed(): SeedData {
   const employees = makeEmployees(208)
   const { seats, events } = buildSeatsAndAssign(employees)
@@ -467,6 +510,7 @@ export function buildSeed(): SeedData {
   const meetingRooms = makeMeetingRooms()
   const meetingBookings = makeMeetingBookings(meetingRooms, employees)
   const seatRequests = makeSeatRequests(employees, seats)
+  const assetRequests = makeAssetRequests(assets, employees)
   return {
     offices: OFFICES,
     floors: FLOORS,
@@ -480,5 +524,6 @@ export function buildSeed(): SeedData {
     meetingRooms,
     meetingBookings,
     seatRequests,
+    assetRequests,
   }
 }
