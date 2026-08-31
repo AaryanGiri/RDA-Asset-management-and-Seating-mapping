@@ -1,8 +1,11 @@
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { Plus, Minus, Maximize2 } from 'lucide-react'
 import { clamp, initials } from '@/lib/utils'
 import { cn } from '@/lib/utils'
-import { BENCHES, ROOMS, VBW, VBH, SW, type NDesk, type NPerson, type RoomKind } from './data'
+import {
+  ROOMS, CLUSTERS, STORAGE, STAIR, PILLAR, WIFI, CORRIDOR, LABELS, VBW, VBH,
+  type NDesk, type NPerson, type RoomKind,
+} from './data'
 import { deskFill, SEAT_STATUS, type ColorMode } from './meta'
 
 interface Props {
@@ -26,11 +29,7 @@ function shortName(name: string) {
 }
 
 const ROOM_COLOR: Record<RoomKind, string> = {
-  meeting: 'rgb(var(--c-notice))',
-  cabin: 'rgb(var(--c-occupied))',
-  vr: 'rgb(var(--c-brand))',
-  flex: 'rgb(var(--c-maint))',
-  workstation: 'rgb(var(--c-brand))',
+  meeting: 'rgb(var(--c-notice))', cabin: 'rgb(var(--c-occupied))', vr: 'rgb(var(--c-brand))', flex: 'rgb(var(--c-maint))', workstation: 'rgb(var(--c-brand))',
 }
 
 export function NeighborhoodMap({ desks, people, selectedId, personaDeskId, colorMode, highlight, focusId, onSelect }: Props) {
@@ -63,10 +62,7 @@ export function NeighborhoodMap({ desks, people, selectedId, personaDeskId, colo
       const cy = desk.y + desk.h / 2
       setSmooth(true)
       setZoom(targetZoom)
-      setPan({
-        x: size.cw / 2 - cx * newK - (size.cw - VBW * newK) / 2,
-        y: size.ch / 2 - cy * newK - (size.ch - VBH * newK) / 2,
-      })
+      setPan({ x: size.cw / 2 - cx * newK - (size.cw - VBW * newK) / 2, y: size.ch / 2 - cy * newK - (size.ch - VBH * newK) / 2 })
     },
     [fit, size],
   )
@@ -101,8 +97,7 @@ export function NeighborhoodMap({ desks, people, selectedId, personaDeskId, colo
   }
   const onPointerMove = (e: React.PointerEvent) => {
     if (!drag.current) return
-    const dx = e.clientX - drag.current.sx
-    const dy = e.clientY - drag.current.sy
+    const dx = e.clientX - drag.current.sx, dy = e.clientY - drag.current.sy
     if (Math.abs(dx) + Math.abs(dy) > 3) drag.current.moved = true
     setPan({ x: drag.current.px + dx, y: drag.current.py + dy })
   }
@@ -111,75 +106,69 @@ export function NeighborhoodMap({ desks, people, selectedId, personaDeskId, colo
   const zoomBy = (f: number) => { setSmooth(true); setZoom((z) => clamp(z * f, 0.55, 6)) }
   const reset = () => { setSmooth(true); setZoom(1); setPan({ x: 0, y: 0 }) }
 
-  const benchDividers = useMemo(() => {
-    // vertical seat dividers on each bench table
-    const lines: { x: number; y1: number; y2: number }[] = []
-    for (const b of BENCHES) {
-      const n = Math.round(b.w / SW)
-      for (let i = 1; i < n; i++) lines.push({ x: b.x + SW * i, y1: b.y + 4, y2: b.y + b.h - 4 })
-    }
-    return lines
-  }, [])
-
   return (
     <div
       ref={containerRef}
       className="relative h-full w-full overflow-hidden rounded-2xl bg-bg grid-bg touch-none"
-      onWheel={onWheel}
-      onPointerDown={onPointerDown}
-      onPointerMove={onPointerMove}
-      onPointerUp={onPointerUp}
+      onWheel={onWheel} onPointerDown={onPointerDown} onPointerMove={onPointerMove} onPointerUp={onPointerUp}
       onPointerLeave={() => { onPointerUp(); setHover(null) }}
       style={{ cursor: drag.current ? 'grabbing' : 'grab' }}
     >
       <div
         className="absolute left-0 top-0 origin-top-left"
-        style={{
-          width: VBW, height: VBH,
-          transform: `translate(${originX}px, ${originY}px) scale(${k})`,
-          transformOrigin: '0 0',
-          transition: smooth ? 'transform 0.5s cubic-bezier(0.22,1,0.36,1)' : 'none',
-        }}
+        style={{ width: VBW, height: VBH, transform: `translate(${originX}px, ${originY}px) scale(${k})`, transformOrigin: '0 0', transition: smooth ? 'transform 0.5s cubic-bezier(0.22,1,0.36,1)' : 'none' }}
       >
         <svg viewBox={`0 0 ${VBW} ${VBH}`} width={VBW} height={VBH} className="absolute inset-0 overflow-visible">
-          {/* hall floor + outer wall */}
-          <rect x={14} y={14} width={VBW - 28} height={VBH - 28} rx={20}
-            fill="rgb(var(--c-surface))" opacity={0.4} stroke="rgb(var(--c-border-strong))" strokeWidth={5} />
+          <defs>
+            <pattern id="hatch" width="7" height="7" patternTransform="rotate(45)" patternUnits="userSpaceOnUse">
+              <line x1="0" y1="0" x2="0" y2="7" stroke="rgb(var(--c-text-subtle))" strokeWidth="1.2" opacity="0.6" />
+            </pattern>
+          </defs>
 
-          {/* bench tables */}
-          {BENCHES.map((b) => (
-            <g key={b.id}>
-              <rect x={b.x} y={b.y} width={b.w} height={b.h} rx={10}
-                fill="rgb(var(--c-surface-2))" stroke="rgb(var(--c-border))" strokeWidth={1.4} />
-              {/* spine */}
-              <line x1={b.x + 4} y1={b.y + b.h / 2} x2={b.x + b.w - 4} y2={b.y + b.h / 2} stroke="rgb(var(--c-border))" strokeWidth={1} />
-              <text x={b.x + 2} y={b.y - 8} fontSize={11} fontWeight={700} fill="rgb(var(--c-text-subtle))" style={{ letterSpacing: 0.3 }}>{b.label.toUpperCase()}</text>
+          {/* hall floor + outer wall */}
+          <rect x={16} y={44} width={880} height={566} rx={6} fill="rgb(var(--c-surface))" opacity={0.35} stroke="rgb(var(--c-border-strong))" strokeWidth={6} />
+          {/* corridor */}
+          <g>
+            <rect x={CORRIDOR.x} y={CORRIDOR.y} width={CORRIDOR.w} height={CORRIDOR.h} fill="rgb(var(--c-surface-2))" opacity={0.5} stroke="rgb(var(--c-border))" strokeWidth={1.4} />
+            <text x={CORRIDOR.x + CORRIDOR.w / 2} y={CORRIDOR.y + CORRIDOR.h / 2} fontSize={13} fontWeight={600} fill="rgb(var(--c-text-subtle))" textAnchor="middle" transform={`rotate(90 ${CORRIDOR.x + CORRIDOR.w / 2} ${CORRIDOR.y + CORRIDOR.h / 2})`}>6'-0" WIDE CORRIDOR</text>
+          </g>
+
+          {/* furniture cluster backings */}
+          {CLUSTERS.map((c) => <rect key={c.id} x={c.x} y={c.y} width={c.w} height={c.h} rx={8} fill="rgb(var(--c-surface-2))" opacity={0.55} stroke="rgb(var(--c-border))" strokeWidth={1.2} />)}
+
+          {/* low-height storage */}
+          {STORAGE.map((s) => (
+            <g key={s.id}>
+              <rect x={s.x} y={s.y} width={s.w} height={s.h} rx={2} fill="rgb(var(--c-surface-3))" stroke="rgb(var(--c-border-strong))" strokeWidth={1.2} />
+              {s.label && s.h > 50 && <text x={s.x + s.w / 2} y={s.y + s.h / 2} fontSize={7.5} fill="rgb(var(--c-text-subtle))" textAnchor="middle" transform={`rotate(90 ${s.x + s.w / 2} ${s.y + s.h / 2})`}>{s.label}</text>}
             </g>
           ))}
-          {benchDividers.map((l, i) => <line key={i} x1={l.x} y1={l.y1} x2={l.x} y2={l.y2} stroke="rgb(var(--c-border))" strokeWidth={1} opacity={0.7} />)}
 
-          {/* walled rooms */}
-          {ROOMS.map((r) => {
-            const c = ROOM_COLOR[r.kind]
-            return (
-              <g key={r.id}>
-                <rect x={r.x} y={r.y} width={r.w} height={r.h} rx={12} fill="rgb(var(--c-surface))" stroke={c} strokeWidth={2} />
-                <rect x={r.x} y={r.y} width={r.w} height={26} rx={12} fill={c} opacity={0.14} />
-                <text x={r.x + 12} y={r.y + 18} fontSize={12.5} fontWeight={700} fill="rgb(var(--c-text))">{r.label}</text>
-                {r.sub && <text x={r.x + r.w - 12} y={r.y + 18} textAnchor="end" fontSize={10.5} fill="rgb(var(--c-text-subtle))">{r.sub}</text>}
-                {r.kind === 'meeting' && (
-                  <g>
-                    {/* conference table + chairs */}
-                    <rect x={r.x + r.w / 2 - 46} y={r.y + r.h / 2 - 20} width={92} height={40} rx={10} fill="rgb(var(--c-surface-2))" stroke="rgb(var(--c-border))" strokeWidth={1.4} />
-                    {[-34, 0, 34].map((dx) => <circle key={`u${dx}`} cx={r.x + r.w / 2 + dx} cy={r.y + r.h / 2 - 32} r={8} fill="rgb(var(--c-surface-3))" stroke="rgb(var(--c-border))" strokeWidth={1} />)}
-                    {[-34, 0, 34].map((dx) => <circle key={`d${dx}`} cx={r.x + r.w / 2 + dx} cy={r.y + r.h / 2 + 32} r={8} fill="rgb(var(--c-surface-3))" stroke="rgb(var(--c-border))" strokeWidth={1} />)}
-                  </g>
-                )}
-              </g>
-            )
-          })}
+          {/* staircase + pillar + wifi */}
+          <rect x={STAIR.x} y={STAIR.y} width={STAIR.w} height={STAIR.h} fill="url(#hatch)" stroke="rgb(var(--c-border-strong))" strokeWidth={1.2} />
+          {Array.from({ length: 6 }).map((_, i) => <line key={i} x1={STAIR.x} y1={STAIR.y + (STAIR.h / 6) * (i + 1)} x2={STAIR.x + STAIR.w} y2={STAIR.y + (STAIR.h / 6) * (i + 1)} stroke="rgb(var(--c-border-strong))" strokeWidth={0.8} />)}
+          <rect x={PILLAR.x} y={PILLAR.y} width={PILLAR.w} height={PILLAR.h} rx={2} fill="#c026d3" opacity={0.85} />
+          <text x={PILLAR.x + PILLAR.w / 2} y={PILLAR.y + PILLAR.h / 2} fontSize={13} fontWeight={800} fill="#fff" textAnchor="middle" dominantBaseline="central">P</text>
+          <rect x={WIFI.x} y={WIFI.y} width={WIFI.w} height={WIFI.h} rx={4} fill="#facc15" opacity={0.9} />
+          <text x={WIFI.x + WIFI.w / 2} y={WIFI.y + WIFI.h / 2} fontSize={12} fontWeight={800} fill="#422006" textAnchor="middle" dominantBaseline="central">WIFI</text>
 
-          {/* seats (desk + chair + person) */}
+          {/* meeting room */}
+          {ROOMS.map((r) => (
+            <g key={r.id}>
+              <rect x={r.x} y={r.y} width={r.w} height={r.h} rx={8} fill="rgb(var(--c-surface))" stroke={ROOM_COLOR[r.kind]} strokeWidth={2} />
+              <rect x={r.x} y={r.y} width={r.w} height={24} rx={8} fill={ROOM_COLOR[r.kind]} opacity={0.14} />
+              <text x={r.x + 10} y={r.y + 17} fontSize={12} fontWeight={700} fill="rgb(var(--c-text))">{r.label}</text>
+              {r.sub && <text x={r.x + r.w / 2} y={r.y + r.h - 12} fontSize={9.5} fill="rgb(var(--c-text-subtle))" textAnchor="middle">{r.sub}</text>}
+              <rect x={r.x + r.w / 2 - 44} y={r.y + r.h / 2 - 18} width={88} height={36} rx={9} fill="rgb(var(--c-surface-2))" stroke="rgb(var(--c-border))" strokeWidth={1.4} />
+              {[-30, 0, 30].map((dx) => <circle key={`u${dx}`} cx={r.x + r.w / 2 + dx} cy={r.y + r.h / 2 - 30} r={8} fill="rgb(var(--c-surface-3))" stroke="rgb(var(--c-border))" strokeWidth={1} />)}
+              {[-30, 0, 30].map((dx) => <circle key={`d${dx}`} cx={r.x + r.w / 2 + dx} cy={r.y + r.h / 2 + 30} r={8} fill="rgb(var(--c-surface-3))" stroke="rgb(var(--c-border))" strokeWidth={1} />)}
+            </g>
+          ))}
+
+          {/* zone labels */}
+          {LABELS.map((l) => <text key={l.text} x={l.x} y={l.y} fontSize={l.text === 'TECH INNOVATION' ? 15 : 11.5} fontWeight={l.text === 'TECH INNOVATION' ? 800 : 700} fill={l.color} style={{ letterSpacing: 0.3 }}>{l.text}</text>)}
+
+          {/* seats: desk + office chair + person */}
           {desks.map((desk) => {
             const person = desk.personId ? people.get(desk.personId) : undefined
             const occupied = desk.status === 'occupied' || desk.status === 'notice'
@@ -189,67 +178,56 @@ export function NeighborhoodMap({ desks, people, selectedId, personaDeskId, colo
             const isYou = desk.id === personaDeskId
             const dim = highlight ? !highlight.has(desk.id) : false
             const hovered = hover?.desk.id === desk.id
-            const onBench = desk.zone === 'workstation'
 
             const cx = desk.x + desk.w / 2
-            const top = desk.chair !== 'bottom'
+            const top = desk.chair !== 'bottom' // chair at top of the cell
             const chairCy = top ? desk.y + 13 : desk.y + desk.h - 13
-            const avatarR = 13
-            // name / number placed toward the spine (inner) side
-            const nameY = top ? desk.y + desk.h - 9 : desk.y + 13
-            const numY = top ? desk.y + desk.h - 22 : desk.y + 26
+            const deskY = top ? desk.y + 24 : desk.y + 6
+            const deskH = desk.h - 30
+            const nameY = top ? desk.y + desk.h - 8 : desk.y + 14
+            const numY = top ? deskY + 12 : deskY + deskH - 4
 
             return (
               <g
-                key={desk.id}
-                data-desk
-                style={{ cursor: 'pointer', opacity: dim ? 0.2 : 1, transition: 'opacity 0.3s' }}
+                key={desk.id} data-desk
+                style={{ cursor: 'pointer', opacity: dim ? 0.22 : 1, transition: 'opacity 0.3s' }}
                 onClick={(e) => { e.stopPropagation(); if (!drag.current?.moved) onSelect(desk) }}
                 onPointerEnter={(e) => setHover({ desk, x: e.clientX, y: e.clientY })}
                 onPointerMove={(e) => setHover((h) => (h && h.desk.id === desk.id ? { ...h, x: e.clientX, y: e.clientY } : h))}
                 onPointerLeave={() => setHover(null)}
               >
-                {/* selection / hover cell ring */}
                 {(selected || hovered) && (
-                  <rect x={desk.x + 1} y={desk.y + 1} width={desk.w - 2} height={desk.h - 2} rx={8}
-                    fill={occupied ? fill : 'transparent'} fillOpacity={selected ? 0.1 : 0.06}
-                    stroke={fill} strokeWidth={selected ? 2 : 1.3} opacity={selected ? 1 : 0.6} />
+                  <rect x={desk.x} y={desk.y} width={desk.w} height={desk.h} rx={8} fill={occupied ? fill : 'transparent'} fillOpacity={selected ? 0.1 : 0.06} stroke={fill} strokeWidth={selected ? 2 : 1.3} opacity={selected ? 1 : 0.6} />
                 )}
 
-                {/* standalone desk surface for room desks (bench desks sit on the table) */}
-                {!onBench && (
-                  <rect x={desk.x + 8} y={top ? desk.y + 24 : desk.y + 6} width={desk.w - 16} height={desk.h - 30} rx={6}
-                    fill="rgb(var(--c-surface-2))" stroke="rgb(var(--c-border))" strokeWidth={1.2} />
-                )}
+                {/* desk surface */}
+                <rect x={desk.x + 8} y={deskY} width={desk.w - 16} height={deskH} rx={5} fill="rgb(var(--c-surface))" stroke={occupied ? fill : status.fill} strokeWidth={1.3} strokeDasharray={occupied ? undefined : '3 3'} />
+                {/* monitor at the inner edge */}
+                <rect x={cx - 13} y={top ? deskY + deskH - 5 : deskY + 1} width={26} height={4} rx={2} fill={occupied ? fill : 'rgb(var(--c-border-strong))'} opacity={occupied ? 0.6 : 0.8} />
 
-                {/* monitor near the spine */}
-                <rect x={cx - 13} y={top ? desk.y + desk.h - 7 : desk.y + 2} width={26} height={4.5} rx={2}
-                  fill={occupied ? fill : 'rgb(var(--c-border-strong))'} opacity={occupied ? 0.55 : 0.8} />
-
-                {/* chair: backrest + seat */}
+                {/* office chair: backrest + seat */}
                 <rect x={cx - 15} y={top ? desk.y + 1 : desk.y + desk.h - 7} width={30} height={5} rx={2.5} fill={occupied ? fill : 'rgb(var(--c-surface-3))'} />
-                <rect x={cx - 16} y={top ? desk.y + 5 : desk.y + desk.h - 23} width={32} height={18} rx={8}
-                  fill={occupied ? 'rgb(var(--c-surface))' : 'rgb(var(--c-surface-2))'} stroke={occupied ? fill : status.fill} strokeWidth={1.6} />
+                <rect x={cx - 16} y={top ? desk.y + 5 : desk.y + desk.h - 23} width={32} height={18} rx={9} fill={occupied ? 'rgb(var(--c-surface))' : 'rgb(var(--c-surface-2))'} stroke={occupied ? fill : status.fill} strokeWidth={1.6} />
 
                 {occupied && person ? (
                   <>
-                    <circle cx={cx} cy={chairCy} r={avatarR} fill={`hsl(${person.hue} 62% 52%)`} stroke="#fff" strokeWidth={1.4} />
+                    <circle cx={cx} cy={chairCy} r={13} fill={`hsl(${person.hue} 62% 52%)`} stroke="#fff" strokeWidth={1.4} />
                     <text x={cx} y={chairCy} textAnchor="middle" dominantBaseline="central" fontSize={10.5} fontWeight={700} fill="#fff">{initials(person.name).toUpperCase()}</text>
                     <text x={cx} y={nameY} textAnchor="middle" fontSize={10} fontWeight={600} fill="rgb(var(--c-text))">{shortName(person.name)}</text>
-                    <text x={desk.x + desk.w - 5} y={numY} textAnchor="end" fontSize={8.5} fill="rgb(var(--c-text-subtle))">#{desk.label}</text>
-                    {desk.status === 'notice' && <circle cx={desk.x + 8} cy={numY - 3} r={3.5} fill={SEAT_STATUS.notice.fill} stroke="#fff" strokeWidth={1} />}
+                    <text x={desk.x + desk.w - 12} y={numY} textAnchor="end" fontSize={8.5} fontWeight={700} fill="rgb(var(--c-text-subtle))">{desk.label}</text>
+                    {desk.status === 'notice' && <circle cx={desk.x + 14} cy={numY - 3} r={3.5} fill={SEAT_STATUS.notice.fill} stroke="#fff" strokeWidth={1} />}
                   </>
                 ) : (
                   <>
-                    <text x={cx} y={chairCy + 1} textAnchor="middle" dominantBaseline="central" fontSize={9} fontWeight={700} fill={status.fill}>#{desk.label}</text>
+                    <text x={cx} y={chairCy + 1} textAnchor="middle" dominantBaseline="central" fontSize={8.5} fontWeight={700} fill={status.fill}>{desk.label}</text>
                     <text x={cx} y={nameY} textAnchor="middle" fontSize={9} fontWeight={600} fill={status.fill}>{status.label}</text>
                   </>
                 )}
 
                 {isYou && (
                   <g>
-                    <rect x={desk.x + desk.w / 2 - 15} y={top ? desk.y - 12 : desk.y + desk.h} width={30} height={14} rx={7} fill="rgb(var(--c-brand))" />
-                    <text x={desk.x + desk.w / 2} y={top ? desk.y - 5 : desk.y + desk.h + 7} textAnchor="middle" dominantBaseline="central" fontSize={9} fontWeight={800} fill="#fff">YOU</text>
+                    <rect x={cx - 15} y={top ? desk.y - 13 : desk.y + desk.h + 1} width={30} height={14} rx={7} fill="rgb(var(--c-brand))" />
+                    <text x={cx} y={top ? desk.y - 6 : desk.y + desk.h + 8} textAnchor="middle" dominantBaseline="central" fontSize={9} fontWeight={800} fill="#fff">YOU</text>
                   </g>
                 )}
               </g>
@@ -274,16 +252,13 @@ export function NeighborhoodMap({ desks, people, selectedId, personaDeskId, colo
         const person = hover.desk.personId ? people.get(hover.desk.personId) : undefined
         const m = SEAT_STATUS[hover.desk.status]
         return (
-          <div className="pointer-events-none fixed z-50 w-max max-w-[240px] -translate-x-1/2 -translate-y-[calc(100%+16px)] rounded-xl border border-border bg-surface p-2.5 shadow-pop"
-            style={{ left: hover.x, top: hover.y }}>
+          <div className="pointer-events-none fixed z-50 w-max max-w-[240px] -translate-x-1/2 -translate-y-[calc(100%+16px)] rounded-xl border border-border bg-surface p-2.5 shadow-pop" style={{ left: hover.x, top: hover.y }}>
             <div className="flex items-center gap-2">
               <span className={cn('h-2 w-2 rounded-full', m.dot)} />
               <span className="text-sm font-semibold text-content">{person ? person.name : `Desk ${hover.desk.label}`}</span>
               <span className={cn('chip px-1.5 py-0.5 text-2xs', m.bg, m.text)}>{m.label}</span>
             </div>
-            <p className="mt-1 text-xs text-muted">
-              {person ? `${person.title} · #${hover.desk.label}` : `${hover.desk.pod} · ${hover.desk.note ?? 'Unassigned'}`}
-            </p>
+            <p className="mt-1 text-xs text-muted">{person ? `${person.title} · ${hover.desk.label}` : `${hover.desk.pod} · ${hover.desk.note ?? 'Unassigned'}`}</p>
           </div>
         )
       })()}
