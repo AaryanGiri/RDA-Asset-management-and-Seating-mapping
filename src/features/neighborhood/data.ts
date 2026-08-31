@@ -1,23 +1,24 @@
 // ─────────────────────────────────────────────────────────────────────────────
-// TECH INNOVATION neighborhood — standardized, market-style seat map.
+// TECH INNOVATION hall — a faithful sub-layout of the AIWC floor plan.
 //
-// A self-contained dataset (real people + a clean pod-based desk layout) for the
-// new seating experience. It intentionally does NOT depend on the legacy floor-
-// map seed, so the old blueprint module can be removed later without touching it.
+// Modelled on the real drawing: a walled hall with back-to-back desk benches
+// (open plan), private cabins, the VR room, a flexi/overhead bench and two
+// meeting rooms. Each seat is a real desk + office chair; the ~58 people from
+// the floor sheet are seated on them.
 //
-// Layout: workstations are grouped into "pods" (back-to-back benches of 6), the
-// way commercial products (Robin / OfficeSpace / deskbird) render an open plan.
-// Cabins, the VR room and flexi/overhead desks sit in a side strip.
+// Self-contained (no dependency on the legacy floor-map seed) so the old
+// blueprint module can be removed later without touching this.
 // ─────────────────────────────────────────────────────────────────────────────
 
 export type NStatus = 'occupied' | 'vacant' | 'notice' | 'maintenance' | 'blocked'
 export type NType = 'employee' | 'intern' | 'partner'
 export type NZone = 'workstation' | 'cabin' | 'vr' | 'flex'
+export type RoomKind = NZone | 'meeting'
 
 export interface NPerson {
   id: string
-  number?: string // workstation number from the floor sheet
-  code: string // employee code (or vendor / intern marker)
+  number?: string
+  code: string
   name: string
   type: NType
   title: string
@@ -27,31 +28,39 @@ export interface NPerson {
 
 export interface NDesk {
   id: string
-  label: string // desk / seat number shown on the map
+  label: string
   zone: NZone
-  pod: string
+  pod: string // bench / room name
+  x: number // desk-cell top-left
+  y: number
+  w: number
+  h: number
+  chair: 'top' | 'bottom' | 'left' | 'right'
+  personId?: string
+  status: NStatus
+  note?: string
+}
+
+export interface Bench {
+  id: string
+  label: string
   x: number
   y: number
   w: number
   h: number
-  chair: 'top' | 'bottom'
-  personId?: string
-  status: NStatus
-  note?: string
 }
 
 export interface NRoom {
   id: string
   label: string
   sub?: string
-  kind: NZone
+  kind: RoomKind
   x: number
   y: number
   w: number
   h: number
 }
 
-// deterministic avatar hue from a name (stable across reloads, no RNG)
 function hue(name: string): number {
   let h = 0
   for (let i = 0; i < name.length; i++) h = (h * 31 + name.charCodeAt(i)) >>> 0
@@ -64,7 +73,6 @@ const TYPE_TITLE: Record<NType, string> = {
   partner: 'Partner · Silver Touch',
 }
 
-// raw roster (workstation seats) — [number, code, name, type]
 type Raw = [string, string, string, NType]
 const WS_RAW: Raw[] = [
   ['36', 'Intern', 'Aarnav Raj', 'intern'],
@@ -122,13 +130,12 @@ const WS_RAW: Raw[] = [
   ['144', 'Not generated', 'Pawan Rajput', 'employee'],
 ]
 
-// special seats (cabin / VR / flex-overhead)
-const SPECIAL_RAW: { key: string; number: string; code: string; name: string; type: NType }[] = [
-  { key: 'cabin', number: 'RHS-3', code: '10345HO', name: 'N N Sinha', type: 'employee' },
-  { key: 'vr1', number: 'VR-1', code: 'Silver Touch', name: 'Kaushal Jha', type: 'partner' },
-  { key: 'vr2', number: 'VR-2', code: 'Intern', name: 'Pradeep Singh', type: 'intern' },
-  { key: 'flex1', number: 'FX-1', code: 'Intern', name: 'Priya Priyadarshini', type: 'intern' },
-  { key: 'flex2', number: 'FX-2', code: 'Intern', name: 'Ashmit Sharma', type: 'intern' },
+const SPECIAL_RAW = [
+  { number: 'RHS-3', code: '10345HO', name: 'N N Sinha', type: 'employee' as NType },
+  { number: 'VR-1', code: 'Silver Touch', name: 'Kaushal Jha', type: 'partner' as NType },
+  { number: 'VR-2', code: 'Intern', name: 'Pradeep Singh', type: 'intern' as NType },
+  { number: 'FX-1', code: 'Intern', name: 'Priya Priyadarshini', type: 'intern' as NType },
+  { number: 'FX-2', code: 'Intern', name: 'Ashmit Sharma', type: 'intern' as NType },
 ]
 
 function mkPerson(number: string | undefined, code: string, name: string, type: NType): NPerson {
@@ -152,130 +159,81 @@ export const PEOPLE: NPerson[] = [
 const personByName = (name: string) => PEOPLE.find((p) => p.name === name)!
 
 // ── geometry ────────────────────────────────────────────────────────────────
-export const DESK_W = 104
-export const DESK_H = 52
-const DGAP = 12
-const CH = 22 // chair band
-const SPINE = 10 // gap between the two back-to-back desk rows
-const PAD = 18
-const LABELH = 24
-const COLS = 3 // desks per row in a pod (pod = 2 rows = 6 desks)
+export const SW = 96 // seat pitch along a bench
+export const DD = 56 // desk depth (one row)
 
-const podInnerW = COLS * DESK_W + (COLS - 1) * DGAP
-const podInnerH = 2 * CH + 2 * DESK_H + SPINE
-export const POD_BOX_W = podInnerW + 2 * PAD
-export const POD_BOX_H = podInnerH + 2 * PAD + LABELH
-
-const X0 = 44
-const Y0 = 44
-const STEPX = POD_BOX_W + 40
-const STEPY = POD_BOX_H + 40
-const PODS_PER_ROW = 3
-
-export interface Pod {
-  id: string
-  label: string
-  x: number
-  y: number
-  w: number
-  h: number
+// A back-to-back bench: `cols` desks on top (chairs up) + `cols` on the bottom
+// (chairs down), sharing one long table.
+function bench2(id: string, label: string, x: number, y: number, cols: number): { bench: Bench; cells: Omit<NDesk, 'personId' | 'status' | 'note' | 'label'>[] } {
+  const bench: Bench = { id, label, x, y, w: cols * SW, h: 2 * DD }
+  const cells: Omit<NDesk, 'personId' | 'status' | 'note' | 'label'>[] = []
+  for (let i = 0; i < cols; i++) cells.push({ id: `${id}_t${i}`, zone: 'workstation', pod: label, x: x + i * SW, y, w: SW, h: DD, chair: 'top' })
+  for (let i = 0; i < cols; i++) cells.push({ id: `${id}_b${i}`, zone: 'workstation', pod: label, x: x + i * SW, y: y + DD, w: SW, h: DD, chair: 'bottom' })
+  return { bench, cells }
 }
 
-// Build a pod bench (6 desks) at grid slot `index`; returns the pod box + desks.
-function buildPod(index: number, label: string): { pod: Pod; desks: Omit<NDesk, 'personId' | 'status' | 'note'>[] } {
-  const col = index % PODS_PER_ROW
-  const row = Math.floor(index / PODS_PER_ROW)
-  const boxX = X0 + col * STEPX
-  const boxY = Y0 + row * STEPY
-  const ox = boxX + PAD
-  const oy = boxY + PAD + LABELH
-  const pod: Pod = { id: `pod_${label}`, label: `Pod ${label}`, x: boxX, y: boxY, w: POD_BOX_W, h: POD_BOX_H }
-  const desks: Omit<NDesk, 'personId' | 'status' | 'note'>[] = []
-  const topY = oy + CH
-  const botY = oy + CH + DESK_H + SPINE
-  for (let i = 0; i < COLS; i++) {
-    const dx = ox + i * (DESK_W + DGAP)
-    desks.push({ id: `${pod.id}_t${i}`, label: '', zone: 'workstation', pod: pod.label, x: dx, y: topY, w: DESK_W, h: DESK_H, chair: 'top' })
-  }
-  for (let i = 0; i < COLS; i++) {
-    const dx = ox + i * (DESK_W + DGAP)
-    desks.push({ id: `${pod.id}_b${i}`, label: '', zone: 'workstation', pod: pod.label, x: dx, y: botY, w: DESK_W, h: DESK_H, chair: 'bottom' })
-  }
-  return { pod, desks }
-}
+// open-plan islands, echoing the drawing (three long benches + a shorter one)
+const OPEN_X = 320
+const islandA = bench2('bench_a', 'Bench 1', OPEN_X, 78, 8)
+const islandB = bench2('bench_b', 'Bench 2', OPEN_X, 300, 8)
+const islandC = bench2('bench_c', 'Bench 3', OPEN_X, 522, 8)
+const islandD = bench2('bench_d', 'Bench 4', OPEN_X, 744, 5)
 
-const POD_LABELS = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J']
+export const BENCHES: Bench[] = [islandA.bench, islandB.bench, islandC.bench, islandD.bench]
+const openCells = [...islandA.cells, ...islandB.cells, ...islandC.cells, ...islandD.cells]
 
-// build 10 workstation pods = 60 desk slots
-const built = POD_LABELS.map((l, i) => buildPod(i, l))
-export const PODS: Pod[] = built.map((b) => b.pod)
-const wsSlots = built.flatMap((b) => b.desks)
-
-// demo (unoccupied) desks: a few free / maintenance / blocked to exercise every status
 const DEMO: { label: string; status: NStatus; note?: string }[] = [
   { label: '136', status: 'vacant', note: 'Available — ready for a new joiner' },
   { label: '137', status: 'vacant', note: 'Available' },
   { label: '138', status: 'maintenance', note: 'Desk power fault — IT ticket #4821' },
-  { label: '139', status: 'blocked', note: 'Reserved — incoming QA pod (Q4)' },
+  { label: '139', status: 'blocked', note: 'Reserved — incoming QA squad (Q4)' },
   { label: '140', status: 'vacant', note: 'Available' },
-  { label: '141', status: 'maintenance', note: 'Monitor arm repair pending' },
-  { label: '142', status: 'blocked', note: 'Held for team expansion' },
 ]
-
-// employees currently on notice period (freeing up soon)
 const NOTICE = new Set(['54', '97', '112'])
 
-// ── assemble base desks (workstations) ───────────────────────────────────────
-const workstationDesks: NDesk[] = wsSlots.map((slot, i) => {
+const openDesks: NDesk[] = openCells.map((cell, i) => {
   if (i < WS_RAW.length) {
     const [number, , name] = WS_RAW[i]
     const p = personByName(name)
     const onNotice = NOTICE.has(number)
-    return {
-      ...slot,
-      label: number,
-      personId: p.id,
-      status: onNotice ? 'notice' : 'occupied',
-      note: onNotice ? 'On notice — last working day within 30 days' : undefined,
-    }
+    return { ...cell, label: number, personId: p.id, status: onNotice ? 'notice' : 'occupied', note: onNotice ? 'On notice — last working day within 30 days' : undefined }
   }
   const demo = DEMO[i - WS_RAW.length]
-  return { ...slot, label: demo?.label ?? `${100 + i}`, status: demo?.status ?? 'vacant', note: demo?.note }
+  return { ...cell, label: demo?.label ?? `${100 + i}`, status: demo?.status ?? 'vacant', note: demo?.note }
 })
 
-// ── side strip: VR room, cabin, flex / overhead ──────────────────────────────
-const STRIP_X = X0 + PODS_PER_ROW * STEPX + 6
-
+// ── walled rooms (cabins / VR / flex / meeting) along the right + left edges ──
+const RX = OPEN_X + 8 * SW + 40 // right column
 export const ROOMS: NRoom[] = [
-  { id: 'room_vr', label: 'VR Room', sub: 'Immersive lab', kind: 'vr', x: STRIP_X, y: Y0, w: 300, h: 236 },
-  { id: 'room_cabin', label: 'Cabin RHS-3', sub: 'N N Sinha', kind: 'cabin', x: STRIP_X, y: Y0 + 268, w: 300, h: 150 },
-  { id: 'room_flex', label: 'Flex / Overhead', sub: 'Shared desks', kind: 'flex', x: STRIP_X, y: Y0 + 450, w: 300, h: 210 },
+  { id: 'room_mr5', label: 'Meeting Room 5', sub: '9\'-0" × 8\'-10"', kind: 'meeting', x: 40, y: 60, w: 250, h: 190 },
+  { id: 'room_mr4', label: 'Meeting Room 4', sub: '4 pax', kind: 'meeting', x: 40, y: 690, w: 250, h: 190 },
+  { id: 'room_cabin', label: 'Cabin RHS-3', sub: 'N N Sinha', kind: 'cabin', x: RX, y: 60, w: 300, h: 150 },
+  { id: 'room_cabin2', label: 'Cabin C2', sub: 'Reserved', kind: 'cabin', x: RX, y: 226, w: 300, h: 150 },
+  { id: 'room_vr', label: 'VR Room', sub: 'Immersive lab', kind: 'vr', x: RX, y: 392, w: 300, h: 230 },
+  { id: 'room_flex', label: 'Flex / Overhead', sub: 'Shared desks', kind: 'flex', x: RX, y: 638, w: 300, h: 200 },
 ]
 
-function roomDesk(id: string, label: string, name: string, room: NRoom, dx: number, dy: number, chair: 'top' | 'bottom', zone: NZone): NDesk {
-  const p = personByName(name)
-  return { id, label, zone, pod: room.label, x: room.x + dx, y: room.y + dy, w: DESK_W, h: DESK_H, chair, personId: p.id, status: 'occupied' }
+function roomDesk(id: string, label: string, name: string | undefined, room: NRoom, dx: number, dy: number, chair: NDesk['chair'], zone: NZone, status: NStatus = 'occupied', note?: string): NDesk {
+  const p = name ? personByName(name) : undefined
+  return { id, label, zone, pod: room.label, x: room.x + dx, y: room.y + dy, w: SW, h: DD, chair, personId: p?.id, status: p ? status : 'vacant', note }
 }
+const cabin = ROOMS[2]
+const vr = ROOMS[4]
+const flex = ROOMS[5]
 
-const vr = ROOMS[0]
-const cabin = ROOMS[1]
-const flex = ROOMS[2]
-
-const specialDesks: NDesk[] = [
-  roomDesk('desk_vr1', 'VR-1', 'Kaushal Jha', vr, (vr.w - DESK_W) / 2, 58, 'top', 'vr'),
-  roomDesk('desk_vr2', 'VR-2', 'Pradeep Singh', vr, (vr.w - DESK_W) / 2, 58 + DESK_H + 34, 'bottom', 'vr'),
-  roomDesk('desk_cabin', 'RHS-3', 'N N Sinha', cabin, (cabin.w - DESK_W) / 2, 62, 'top', 'cabin'),
-  roomDesk('desk_flex1', 'FX-1', 'Priya Priyadarshini', flex, 30, 70, 'top', 'flex'),
-  roomDesk('desk_flex2', 'FX-2', 'Ashmit Sharma', flex, flex.w - DESK_W - 30, 70, 'top', 'flex'),
+const roomDesks: NDesk[] = [
+  roomDesk('desk_cabin', 'RHS-3', 'N N Sinha', cabin, (cabin.w - SW) / 2, 70, 'top', 'cabin'),
+  roomDesk('desk_vr1', 'VR-1', 'Kaushal Jha', vr, (vr.w - SW) / 2 - 60, 92, 'top', 'vr'),
+  roomDesk('desk_vr2', 'VR-2', 'Pradeep Singh', vr, (vr.w - SW) / 2 + 60, 92, 'top', 'vr'),
+  roomDesk('desk_flex1', 'FX-1', 'Priya Priyadarshini', flex, 34, 86, 'top', 'flex'),
+  roomDesk('desk_flex2', 'FX-2', 'Ashmit Sharma', flex, flex.w - SW - 34, 86, 'top', 'flex'),
 ]
 
-export const BASE_DESKS: NDesk[] = [...workstationDesks, ...specialDesks]
+export const BASE_DESKS: NDesk[] = [...openDesks, ...roomDesks]
 
-// overall canvas size
-export const VBW = STRIP_X + 300 + X0
-export const VBH = Y0 + 4 * STEPY + 20
+export const VBW = RX + 300 + 40
+export const VBH = 920
 
-// the persona used for the employee view ("This is me")
 export const DEFAULT_PERSONA = personByName('Aryan Giri').id
 
 export const NEIGHBORHOOD = {
