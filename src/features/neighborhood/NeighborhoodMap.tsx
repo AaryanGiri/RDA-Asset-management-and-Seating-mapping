@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
-import { Plus, Minus, Maximize2 } from 'lucide-react'
+import { Plus, Minus, Maximize2, Expand, Shrink } from 'lucide-react'
 import { clamp, initials } from '@/lib/utils'
 import { cn } from '@/lib/utils'
 import {
@@ -38,6 +38,7 @@ export function NeighborhoodMap({ desks, people, selectedId, personaDeskId, colo
   const [zoom, setZoom] = useState(1)
   const [pan, setPan] = useState({ x: 0, y: 0 })
   const [smooth, setSmooth] = useState(false)
+  const [isFs, setIsFs] = useState(false)
   const [hover, setHover] = useState<{ desk: NDesk; x: number; y: number } | null>(null)
   const drag = useRef<{ sx: number; sy: number; px: number; py: number; moved: boolean } | null>(null)
 
@@ -105,6 +106,17 @@ export function NeighborhoodMap({ desks, people, selectedId, personaDeskId, colo
 
   const zoomBy = (f: number) => { setSmooth(true); setZoom((z) => clamp(z * f, 0.55, 6)) }
   const reset = () => { setSmooth(true); setZoom(1); setPan({ x: 0, y: 0 }) }
+
+  useEffect(() => {
+    const onFs = () => setIsFs(!!document.fullscreenElement)
+    document.addEventListener('fullscreenchange', onFs)
+    return () => document.removeEventListener('fullscreenchange', onFs)
+  }, [])
+  const toggleFullscreen = () => {
+    const el = containerRef.current
+    if (!document.fullscreenElement) el?.requestFullscreen?.().catch(() => {})
+    else document.exitFullscreen?.()
+  }
 
   return (
     <div
@@ -238,9 +250,10 @@ export function NeighborhoodMap({ desks, people, selectedId, personaDeskId, colo
 
       {/* zoom controls */}
       <div className="absolute bottom-4 right-4 flex flex-col gap-1.5 rounded-xl border border-border bg-surface/90 p-1 shadow-card backdrop-blur">
+        <button onClick={toggleFullscreen} className="grid h-8 w-8 place-items-center rounded-lg text-muted transition-colors hover:bg-surface-2 hover:text-content" aria-label="Fullscreen">{isFs ? <Shrink className="h-4 w-4" /> : <Expand className="h-4 w-4" />}</button>
+        <div className="mx-1 h-px bg-border" />
         <button onClick={() => zoomBy(1.3)} className="grid h-8 w-8 place-items-center rounded-lg text-muted transition-colors hover:bg-surface-2 hover:text-content" aria-label="Zoom in"><Plus className="h-4 w-4" /></button>
         <button onClick={() => zoomBy(1 / 1.3)} className="grid h-8 w-8 place-items-center rounded-lg text-muted transition-colors hover:bg-surface-2 hover:text-content" aria-label="Zoom out"><Minus className="h-4 w-4" /></button>
-        <div className="mx-1 h-px bg-border" />
         <button onClick={reset} className="grid h-8 w-8 place-items-center rounded-lg text-muted transition-colors hover:bg-surface-2 hover:text-content" aria-label="Fit to screen"><Maximize2 className="h-4 w-4" /></button>
       </div>
       <div className="pointer-events-none absolute bottom-4 left-4 rounded-lg border border-border bg-surface/90 px-2.5 py-1.5 text-2xs font-medium text-muted shadow-card backdrop-blur">
