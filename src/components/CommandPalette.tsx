@@ -35,7 +35,7 @@ export function CommandPalette() {
 
   const navCommands: Cmd[] = [
     { id: 'nav-dash', label: 'Dashboard', icon: LayoutDashboard, group: 'Navigate', run: () => go('/') },
-    { id: 'nav-map', label: 'Floor Map', icon: Map, group: 'Navigate', run: () => go('/seating') },
+    { id: 'nav-map', label: 'Seat Map', icon: Map, group: 'Navigate', run: () => go('/neighborhood') },
     { id: 'nav-dir', label: 'Employee Locator', icon: Users, group: 'Navigate', run: () => go('/directory') },
     { id: 'nav-req', label: 'Seat Requests', icon: Inbox, group: 'Navigate', run: () => go('/requests') },
     { id: 'nav-mr', label: 'Meeting Rooms', icon: CalendarClock, group: 'Navigate', run: () => go('/meeting-rooms') },

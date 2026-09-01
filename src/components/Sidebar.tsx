@@ -34,7 +34,6 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
           items: [
             { to: '/neighborhood', label: 'Seat Map', icon: LayoutGrid, badge: nPending },
             { to: '/my-seat', label: 'My Seat', icon: Armchair },
-            { to: '/seating', label: 'Floor Map', icon: Map },
             { to: '/meeting-rooms', label: 'Meeting Rooms', icon: CalendarClock },
           ],
         },
@@ -45,7 +44,6 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
           title: 'Workplace · Module A',
           items: [
             { to: '/neighborhood', label: 'Seat Map', icon: LayoutGrid, badge: nPending },
-            { to: '/seating', label: 'Floor Map', icon: Map },
             { to: '/directory', label: 'Employee Locator', icon: Users },
             { to: '/requests', label: 'Seat Requests', icon: Inbox, badge: nPending },
             { to: '/meeting-rooms', label: 'Meeting Rooms', icon: CalendarClock },
