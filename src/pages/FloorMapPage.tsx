@@ -114,7 +114,7 @@ export function FloorMapPage() {
             </div>
           )}
           <div className="hidden items-center gap-3 md:flex">
-            <MiniStat icon={Users2} label="Occupied" value={counts.occupied + counts.notice} tone="occupied" />
+            <MiniStat icon={Users2} label="Occupied" value={counts.occupied} tone="occupied" />
             <MiniStat icon={DoorOpen} label="Vacant" value={counts.vacant} tone="vacant" />
             <MiniStat icon={CalendarClock} label="On notice" value={counts.notice} tone="notice" />
             <div className="flex flex-col">
