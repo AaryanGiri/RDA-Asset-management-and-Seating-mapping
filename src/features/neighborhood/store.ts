@@ -201,7 +201,7 @@ export const useNeighborhood = create<NeighborhoodState>()(
     }),
     {
       name: 'aiwc.neighborhood',
-      version: 6, // spare desks + demo seat requests
+      version: 7, // renamed Tech Innovation → RDA
       partialize: (s) => ({ desks: s.desks, requests: s.requests, personaId: s.personaId }),
       migrate: () => ({ desks: clone(SEED_DESKS), requests: [...SEED_REQUESTS], personaId: DEFAULT_PERSONA }) as Partial<NeighborhoodState>,
     },

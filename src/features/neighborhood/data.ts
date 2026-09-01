@@ -1,5 +1,5 @@
 // ─────────────────────────────────────────────────────────────────────────────
-// TECH INNOVATION — an exact reproduction of the one cropped section of the AIWC
+// RDA — an exact reproduction of the one cropped section of the AIWC
 // floor plan (workstations W79–W106): the top bench, the back-to-back island
 // (split by the staircase / pillar), the lower bench, Meeting Room 4, the low-
 // height storage blocks and the wide corridor.
@@ -52,8 +52,8 @@ function hue(name: string): number {
 }
 
 const TYPE_TITLE: Record<NType, string> = {
-  employee: 'Team Member · Tech Innovation',
-  intern: 'Intern · Tech Innovation',
+  employee: 'Team Member · RDA',
+  intern: 'Intern · RDA',
   partner: 'Partner · Silver Touch',
 }
 
@@ -120,13 +120,13 @@ const BOTTOM_Y = 452
 
 const SLOTS: Slot[] = [
   // top bench (desks against the top wall, people below facing up)
-  { label: 'W86', pod: 'Tech Innovation', cx: 96, y: TOP_Y, chair: 'bottom' },
-  { label: 'W85', pod: 'Tech Innovation', cx: 194, y: TOP_Y, chair: 'bottom' },
-  { label: 'W84', pod: 'Tech Innovation', cx: 292, y: TOP_Y, chair: 'bottom' },
-  { label: 'W83', pod: 'Tech Innovation', cx: 390, y: TOP_Y, chair: 'bottom' },
-  { label: 'W82', pod: 'Tech Innovation', cx: 488, y: TOP_Y, chair: 'bottom' },
-  { label: 'W81', pod: 'Tech Innovation', cx: 586, y: TOP_Y, chair: 'bottom' },
-  { label: 'W80', pod: 'Tech Innovation', cx: 684, y: TOP_Y, chair: 'bottom' },
+  { label: 'W86', pod: 'RDA', cx: 96, y: TOP_Y, chair: 'bottom' },
+  { label: 'W85', pod: 'RDA', cx: 194, y: TOP_Y, chair: 'bottom' },
+  { label: 'W84', pod: 'RDA', cx: 292, y: TOP_Y, chair: 'bottom' },
+  { label: 'W83', pod: 'RDA', cx: 390, y: TOP_Y, chair: 'bottom' },
+  { label: 'W82', pod: 'RDA', cx: 488, y: TOP_Y, chair: 'bottom' },
+  { label: 'W81', pod: 'RDA', cx: 586, y: TOP_Y, chair: 'bottom' },
+  { label: 'W80', pod: 'RDA', cx: 684, y: TOP_Y, chair: 'bottom' },
   { label: 'W79', pod: 'COS Cell', cx: 782, y: TOP_Y, chair: 'bottom' },
   // island — north row
   { label: 'W87', pod: 'TI · 80–96', cx: 96, y: ISLAND_N_Y, chair: 'top' },
@@ -208,7 +208,7 @@ export const ROOMS: NRoom[] = [
 ]
 
 export const LABELS: ZoneLabel[] = [
-  { text: 'TECH INNOVATION', x: 54, y: 200, color: 'rgb(var(--c-text))' },
+  { text: 'RDA', x: 54, y: 200, color: 'rgb(var(--c-text))' },
   { text: 'TI · 80 TO 96', x: 360, y: 226, color: '#16a34a' },
   { text: 'R · 97 TO 102', x: 108, y: 420, color: '#0891b2' },
   { text: 'BD · 90 TO 97, 103 TO 105', x: 556, y: 410, color: '#db2777' },
@@ -222,7 +222,7 @@ export const VBH = 800
 export const DEFAULT_PERSONA = PEOPLE.find((p) => p.name === 'Aryan Giri')?.id ?? PEOPLE[0].id
 
 export const NEIGHBORHOOD = {
-  name: 'Tech Innovation',
+  name: 'RDA',
   office: 'AIWC · Aga Khan Foundation',
   floor: '3rd Floor',
   department: 'Technology',
