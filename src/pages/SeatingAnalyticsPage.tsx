@@ -3,37 +3,21 @@ import { useNavigate } from 'react-router-dom'
 import {
   PieChart, Pie, Cell, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, LabelList,
 } from 'recharts'
-import { Armchair, TrendingUp, CalendarClock, UserX, Download, ArrowUpRight } from 'lucide-react'
+import { Armchair, TrendingUp, CalendarClock, DoorOpen, Download, ArrowLeftRight, ArrowRight } from 'lucide-react'
 import { Page } from '@/components/Page'
 import { PageHeader, StatCard, Avatar } from '@/components/ui'
 import { ChartCard, ChartTooltip } from '@/components/charts'
-import { useData, deptName } from '@/lib/store'
 import { useChart } from '@/lib/chart'
-import { SEAT_STATUS } from '@/lib/status'
-import { useSimulatedLoad } from '@/hooks'
 import { useCountUp } from '@/hooks'
-import { cn, daysBetween, downloadCSV, formatDate, relativeTime } from '@/lib/utils'
-import type { SeatStatus } from '@/lib/types'
+import { cn, downloadCSV, relativeTime } from '@/lib/utils'
+import { useSeatSource, NEIGHBORHOOD } from '@/features/neighborhood/seatSource'
+
+const TYPE_COLOR_KEY: Record<string, 'occupied' | 'notice' | 'maint'> = { employee: 'occupied', intern: 'notice', partner: 'maint' }
 
 export function SeatingAnalyticsPage() {
-  const seats = useData((s) => s.seats)
-  const employees = useData((s) => s.employees)
-  const floors = useData((s) => s.floors)
-  const departments = useData((s) => s.departments)
-  const seatEvents = useData((s) => s.seatEvents)
+  const { desks, requests, counts, total, occupied, occRate, byType, noticeRows } = useSeatSource()
   const c = useChart()
-  const loading = useSimulatedLoad(500)
-
-  const counts = useMemo(() => {
-    const o = { vacant: 0, occupied: 0, notice: 0, maintenance: 0, blocked: 0 } as Record<SeatStatus, number>
-    seats.forEach((s) => (o[s.status] += 1))
-    return o
-  }, [seats])
-
-  const total = seats.length
-  const occupied = counts.occupied + counts.notice
-  const occRate = Math.round((occupied / total) * 100)
-  const unseated = employees.filter((e) => !e.currentSeatId).length
+  const nav = useNavigate()
 
   const statusData = [
     { name: 'Occupied', value: counts.occupied, color: c.occupied },
@@ -43,47 +27,38 @@ export function SeatingAnalyticsPage() {
     { name: 'Blocked', value: counts.blocked, color: c.blocked },
   ].filter((d) => d.value > 0)
 
-  const byFloor = floors.map((f) => {
-    const fs = seats.filter((s) => s.floorId === f.id)
-    return {
-      name: f.name.split('·')[0].trim(),
-      Occupied: fs.filter((s) => s.status === 'occupied' || s.status === 'notice').length,
-      Vacant: fs.filter((s) => s.status === 'vacant').length,
-      Other: fs.filter((s) => s.status === 'maintenance' || s.status === 'blocked').length,
+  const byPod = useMemo(() => {
+    const map = new Map<string, { name: string; Occupied: number; Vacant: number; Other: number }>()
+    for (const d of desks) {
+      const e = map.get(d.pod) ?? { name: d.pod, Occupied: 0, Vacant: 0, Other: 0 }
+      if (d.status === 'occupied' || d.status === 'notice') e.Occupied += 1
+      else if (d.status === 'vacant') e.Vacant += 1
+      else e.Other += 1
+      map.set(d.pod, e)
     }
-  })
+    return [...map.values()].sort((a, b) => (b.Occupied + b.Vacant + b.Other) - (a.Occupied + a.Vacant + a.Other))
+  }, [desks])
 
-  const byDept = departments.map((d) => ({
-    name: d.name,
-    value: employees.filter((e) => e.departmentId === d.id && e.currentSeatId).length,
-    color: d.color,
-  })).filter((d) => d.value > 0).sort((a, b) => b.value - a.value)
-
-  const upcoming = employees
-    .filter((e) => e.employmentStatus === 'notice' && e.lastWorkingDay)
-    .map((e) => ({ e, seat: seats.find((s) => s.id === e.currentSeatId), days: daysBetween(e.lastWorkingDay!) }))
-    .sort((a, b) => a.days - b.days)
-
-  const recent = seatEvents.slice(0, 8)
-
+  const typeData = byType.map((t) => ({ name: t.name, value: t.value, color: c[TYPE_COLOR_KEY[t.key]] }))
   const animatedRate = useCountUp(occRate)
+  const recent = requests.slice(0, 8)
 
-  const exportOcc = () => downloadCSV('rodic-assetspace-occupancy-by-floor.csv', byFloor.map((f) => ({ Floor: f.name, ...f })))
+  const exportOcc = () => downloadCSV('rodic-assetspace-occupancy-by-area.csv', byPod.map((p) => ({ Area: p.name, ...p })))
 
   return (
     <Page>
       <PageHeader
         title="Seating Analytics"
-        subtitle="Occupancy, vacancy and upcoming-vacancy insight across Aster HQ"
+        subtitle={`Occupancy, vacancy and workforce mix · ${NEIGHBORHOOD.name}`}
         icon={<TrendingUp className="h-5 w-5" />}
         actions={<button className="btn-secondary" onClick={exportOcc}><Download className="h-4 w-4" /> Export</button>}
       />
 
       <div className="mb-5 grid grid-cols-2 gap-3 lg:grid-cols-4">
-        <StatCard label="Total seats" value={total} icon={<Armchair className="h-5 w-5" />} sub={`across ${floors.length} floors`} />
-        <StatCard label="Occupancy" value={`${animatedRate}%`} icon={<TrendingUp className="h-5 w-5" />} accent="occupied" delta={{ value: '3.2% MoM', up: true }} />
-        <StatCard label="Freeing in 30d" value={upcoming.filter((u) => u.days <= 30).length} icon={<CalendarClock className="h-5 w-5" />} accent="notice" sub="on notice period" />
-        <StatCard label="Awaiting seat" value={unseated} icon={<UserX className="h-5 w-5" />} accent="maint" sub="new joiners / transfers" />
+        <StatCard label="Total seats" value={total} icon={<Armchair className="h-5 w-5" />} sub={NEIGHBORHOOD.name} />
+        <StatCard label="Occupancy" value={`${animatedRate}%`} icon={<TrendingUp className="h-5 w-5" />} accent="occupied" />
+        <StatCard label="On notice" value={counts.notice} icon={<CalendarClock className="h-5 w-5" />} accent="notice" sub="freeing up soon" />
+        <StatCard label="Vacant seats" value={counts.vacant} icon={<DoorOpen className="h-5 w-5" />} accent="vacant" sub="available now" />
       </div>
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
@@ -114,15 +89,15 @@ export function SeatingAnalyticsPage() {
           </div>
         </ChartCard>
 
-        {/* occupancy by floor */}
-        <ChartCard title="Occupancy by floor" subtitle="Seats in use vs available" className="lg:col-span-2">
+        {/* occupancy by area/bench */}
+        <ChartCard title="Occupancy by area" subtitle="Seats in use vs available per bench / cell" className="lg:col-span-2">
           <ResponsiveContainer width="100%" height={286}>
-            <BarChart data={byFloor} barSize={38} margin={{ left: -18, top: 10 }}>
+            <BarChart data={byPod} barSize={26} margin={{ left: -18, top: 10 }}>
               <CartesianGrid vertical={false} stroke={c.grid} />
-              <XAxis dataKey="name" tickLine={false} axisLine={false} tick={{ fill: c.axis, fontSize: 12 }} />
-              <YAxis tickLine={false} axisLine={false} tick={{ fill: c.axis, fontSize: 12 }} />
+              <XAxis dataKey="name" tickLine={false} axisLine={false} interval={0} tick={{ fill: c.axis, fontSize: 10 }} angle={-20} textAnchor="end" height={60} />
+              <YAxis tickLine={false} axisLine={false} tick={{ fill: c.axis, fontSize: 12 }} allowDecimals={false} />
               <Tooltip cursor={{ fill: c.grid }} content={<ChartTooltip tooltipBg={c.tooltipBg} border={c.border} />} />
-              <Bar dataKey="Occupied" stackId="a" fill={c.occupied} radius={[0, 0, 0, 0]} />
+              <Bar dataKey="Occupied" stackId="a" fill={c.occupied} />
               <Bar dataKey="Vacant" stackId="a" fill={c.vacant} />
               <Bar dataKey="Other" stackId="a" fill={c.blocked} radius={[6, 6, 0, 0]} />
             </BarChart>
@@ -131,70 +106,71 @@ export function SeatingAnalyticsPage() {
       </div>
 
       <div className="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-3">
-        {/* seats by department */}
-        <ChartCard title="Seats by department" subtitle="Allocated headcount" className="lg:col-span-2">
-          <ResponsiveContainer width="100%" height={300}>
-            <BarChart data={byDept} layout="vertical" margin={{ left: 46, right: 24 }} barSize={16}>
+        {/* seats by workforce type */}
+        <ChartCard title="Seats by workforce type" subtitle="Employee / Intern / Partner" className="lg:col-span-2">
+          <ResponsiveContainer width="100%" height={230}>
+            <BarChart data={typeData} layout="vertical" margin={{ left: 60, right: 24 }} barSize={20}>
               <CartesianGrid horizontal={false} stroke={c.grid} />
-              <XAxis type="number" tickLine={false} axisLine={false} tick={{ fill: c.axis, fontSize: 12 }} />
-              <YAxis type="category" dataKey="name" tickLine={false} axisLine={false} width={110} tick={{ fill: c.axis, fontSize: 12 }} />
+              <XAxis type="number" tickLine={false} axisLine={false} tick={{ fill: c.axis, fontSize: 12 }} allowDecimals={false} />
+              <YAxis type="category" dataKey="name" tickLine={false} axisLine={false} width={120} tick={{ fill: c.axis, fontSize: 12 }} />
               <Tooltip cursor={{ fill: c.grid }} content={<ChartTooltip tooltipBg={c.tooltipBg} border={c.border} />} />
               <Bar dataKey="value" radius={[0, 6, 6, 0]} name="Seats">
-                {byDept.map((d, i) => <Cell key={i} fill={d.color} />)}
+                {typeData.map((d, i) => <Cell key={i} fill={d.color} />)}
                 <LabelList dataKey="value" position="right" fill={c.axis} fontSize={11} />
               </Bar>
             </BarChart>
           </ResponsiveContainer>
         </ChartCard>
 
-        {/* upcoming vacancies */}
-        <ChartCard title="Upcoming vacancies" subtitle="Seats freeing up · notice period">
-          {upcoming.length === 0 ? (
-            <p className="py-8 text-center text-sm text-subtle">No employees on notice.</p>
+        {/* on notice */}
+        <ChartCard title="On notice" subtitle="Seats freeing up soon">
+          {noticeRows.length === 0 ? (
+            <p className="py-8 text-center text-sm text-subtle">No one on notice.</p>
           ) : (
             <div className="space-y-2">
-              {upcoming.slice(0, 6).map(({ e, seat, days }) => (
-                <div key={e.id} className="flex items-center gap-3 rounded-xl border border-border p-2.5">
-                  <Avatar name={e.fullName} hue={e.avatarHue} size={34} />
+              {noticeRows.map(({ person, desk }) => (
+                <button key={person.id} onClick={() => desk && nav(`/neighborhood?desk=${desk.id}`)} className="flex w-full items-center gap-3 rounded-xl border border-border p-2.5 text-left transition-colors hover:bg-surface-2">
+                  <Avatar name={person.name} hue={person.hue} size={34} />
                   <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm font-medium text-content">{e.fullName}</p>
-                    <p className="truncate text-2xs text-muted">Seat {seat?.seatNumber ?? '—'} · {deptName(e.departmentId)}</p>
+                    <p className="truncate text-sm font-medium text-content">{person.name}</p>
+                    <p className="truncate text-2xs text-muted">Seat {desk?.label ?? '—'} · {desk?.pod}</p>
                   </div>
-                  <div className="text-right">
-                    <p className={cn('text-sm font-semibold', days <= 14 ? 'text-occupied' : 'text-notice')}>{days}d</p>
-                    <p className="text-2xs text-subtle">{formatDate(e.lastWorkingDay!, { day: 'numeric', month: 'short' })}</p>
-                  </div>
-                </div>
+                  <span className="text-xs font-semibold text-notice">Notice</span>
+                </button>
               ))}
             </div>
           )}
         </ChartCard>
       </div>
 
-      {/* recent changes */}
-      <ChartCard title="Recent seat changes" subtitle="Audit trail" className="mt-4">
-        <div className="overflow-x-auto">
-          <table className="w-full min-w-[560px] text-sm">
-            <thead>
-              <tr className="border-b border-border text-left text-2xs uppercase tracking-wide text-subtle">
-                <th className="pb-2 font-semibold">Action</th><th className="pb-2 font-semibold">Seat</th>
-                <th className="pb-2 font-semibold">Employee</th><th className="pb-2 font-semibold">Reason</th>
-                <th className="pb-2 text-right font-semibold">When</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-border">
-              {recent.map((e) => (
-                <tr key={e.id}>
-                  <td className="py-2.5"><span className="chip bg-surface-2 capitalize text-muted">{e.type.replace('-', ' ')}</span></td>
-                  <td className="py-2.5 font-medium text-content">{e.seatNumber}</td>
-                  <td className="py-2.5 text-muted">{e.employeeName ?? '—'}</td>
-                  <td className="py-2.5 text-muted">{e.reason}</td>
-                  <td className="py-2.5 text-right text-2xs text-subtle">{relativeTime(e.timestamp)}</td>
+      {/* recent requests */}
+      <ChartCard title="Recent seat requests" subtitle="Change / swap audit trail" className="mt-4">
+        {recent.length === 0 ? (
+          <p className="py-6 text-center text-sm text-subtle">No seat requests yet. Employees raise these from the Seat Map.</p>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[560px] text-sm">
+              <thead>
+                <tr className="border-b border-border text-left text-2xs uppercase tracking-wide text-subtle">
+                  <th className="pb-2 font-semibold">Type</th><th className="pb-2 font-semibold">Employee</th>
+                  <th className="pb-2 font-semibold">Move</th><th className="pb-2 font-semibold">Status</th>
+                  <th className="pb-2 text-right font-semibold">When</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+              </thead>
+              <tbody className="divide-y divide-border">
+                {recent.map((r) => (
+                  <tr key={r.id}>
+                    <td className="py-2.5"><span className="chip bg-surface-2 capitalize text-muted">{r.type === 'swap' ? <ArrowLeftRight className="h-3 w-3" /> : <ArrowRight className="h-3 w-3" />} {r.type}</span></td>
+                    <td className="py-2.5 font-medium text-content">{r.requesterName}</td>
+                    <td className="py-2.5 text-muted">{r.type === 'change' ? `${r.currentDeskLabel ?? '—'} → ${r.targetDeskLabel}` : `${r.currentDeskLabel} ↔ ${r.otherDeskLabel}`}</td>
+                    <td className="py-2.5 capitalize text-muted">{r.status}</td>
+                    <td className="py-2.5 text-right text-2xs text-subtle">{relativeTime(r.requestDate)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </ChartCard>
     </Page>
   )

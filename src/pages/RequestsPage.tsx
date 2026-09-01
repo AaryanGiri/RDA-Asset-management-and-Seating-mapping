@@ -2,18 +2,21 @@ import { useMemo, useState } from 'react'
 import { Inbox, Check, X, ArrowRight, ArrowLeftRight, Clock, Mail } from 'lucide-react'
 import { Page } from '@/components/Page'
 import { PageHeader, Segmented, Avatar, EmptyState, Modal, Field } from '@/components/ui'
-import { useData } from '@/lib/store'
+import { useUI } from '@/lib/uiStore'
 import { REQUEST_STATUS_META } from '@/lib/status'
 import { cn, formatDate, relativeTime } from '@/lib/utils'
-import type { RequestStatus, SeatRequest } from '@/lib/types'
+import { useNeighborhood } from '@/features/neighborhood/store'
+import { nPersonById, NEIGHBORHOOD } from '@/features/neighborhood/seatSource'
+import type { NRequest } from '@/features/neighborhood/store'
+import type { RequestStatus } from '@/lib/types'
 
 export function RequestsPage() {
-  const requests = useData((s) => s.seatRequests)
-  const employees = useData((s) => s.employees)
-  const approve = useData((s) => s.approveSeatRequest)
-  const reject = useData((s) => s.rejectSeatRequest)
+  const requests = useNeighborhood((s) => s.requests)
+  const approve = useNeighborhood((s) => s.approveRequest)
+  const reject = useNeighborhood((s) => s.rejectRequest)
+  const toast = useUI((s) => s.toast)
   const [tab, setTab] = useState<RequestStatus>('pending')
-  const [rejecting, setRejecting] = useState<SeatRequest | null>(null)
+  const [rejecting, setRejecting] = useState<NRequest | null>(null)
 
   const counts = useMemo(() => ({
     pending: requests.filter((r) => r.status === 'pending').length,
@@ -27,7 +30,7 @@ export function RequestsPage() {
       <PageHeader
         icon={<Inbox className="h-5 w-5" />}
         title="Seat Requests"
-        subtitle="Review and act on employee seat-change and seat-swap requests."
+        subtitle={`Review employee seat-change and seat-swap requests · ${NEIGHBORHOOD.name}`}
         actions={
           <Segmented
             value={tab}
@@ -42,26 +45,26 @@ export function RequestsPage() {
       />
 
       {list.length === 0 ? (
-        <EmptyState icon={<Inbox className="h-5 w-5" />} title={`No ${tab} requests`} body={tab === 'pending' ? 'All caught up — no requests awaiting your review.' : `No ${tab} requests yet.`} />
+        <EmptyState icon={<Inbox className="h-5 w-5" />} title={`No ${tab} requests`} body={tab === 'pending' ? 'All caught up — no requests awaiting your review. Employees raise these from the Seat Map.' : `No ${tab} requests yet.`} />
       ) : (
         <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
           {list.map((r) => {
-            const emp = employees.find((e) => e.id === r.requesterId)
+            const person = nPersonById.get(r.requesterId)
             const m = REQUEST_STATUS_META[r.status]
             return (
               <div key={r.id} className="card p-4">
                 <div className="flex items-start gap-3">
-                  <Avatar name={r.requesterName} hue={emp?.avatarHue ?? 210} size={40} />
+                  <Avatar name={r.requesterName} hue={person?.hue ?? 210} size={40} />
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2">
                       <p className="truncate text-sm font-semibold text-content">{r.requesterName}</p>
-                      <span className="chip bg-surface-2 text-2xs text-muted">{r.requesterCode}</span>
+                      {person && <span className="chip bg-surface-2 text-2xs text-muted">{person.code}</span>}
                     </div>
                     <div className="mt-0.5 flex items-center gap-1.5 text-xs text-muted">
                       {r.type === 'change' ? <ArrowRight className="h-3.5 w-3.5" /> : <ArrowLeftRight className="h-3.5 w-3.5" />}
                       {r.type === 'change'
-                        ? <>Seat change · <span className="text-content">{r.currentSeatNumber ?? '—'}</span> → <span className="font-semibold text-content">{r.requestedSeatNumber}</span></>
-                        : <>Swap · <span className="text-content">{r.currentSeatNumber}</span> ↔ <span className="text-content">{r.otherSeatNumber}</span> <span className="text-subtle">({r.otherEmployeeName})</span></>}
+                        ? <>Seat change · <span className="text-content">{r.currentDeskLabel ?? '—'}</span> → <span className="font-semibold text-content">{r.targetDeskLabel}</span></>
+                        : <>Swap · <span className="text-content">{r.currentDeskLabel}</span> ↔ <span className="text-content">{r.otherDeskLabel}</span> <span className="text-subtle">({r.otherPersonName})</span></>}
                     </div>
                   </div>
                   <span className={cn('chip shrink-0', m.bg, m.text)}><span className={cn('h-1.5 w-1.5 rounded-full', m.dot)} />{m.label}</span>
@@ -81,7 +84,7 @@ export function RequestsPage() {
                     <span className="inline-flex items-center gap-1 text-2xs text-subtle"><Clock className="h-3.5 w-3.5" /> {relativeTime(r.requestDate)}</span>
                     <div className="flex gap-2">
                       <button onClick={() => setRejecting(r)} className="btn-ghost text-occupied hover:bg-occupied-soft"><X className="h-4 w-4" /> Reject</button>
-                      <button onClick={() => approve(r.id)} className="btn-primary"><Check className="h-4 w-4" /> Approve</button>
+                      <button onClick={() => { approve(r.id); toast({ tone: 'success', title: 'Request approved', body: `${r.requesterName}'s ${r.type} approved — seat map updated. Employee notified.` }) }} className="btn-primary"><Check className="h-4 w-4" /> Approve</button>
                     </div>
                   </div>
                 ) : (
@@ -93,7 +96,7 @@ export function RequestsPage() {
         </div>
       )}
 
-      <RejectModal req={rejecting} onClose={() => setRejecting(null)} onConfirm={async (reason) => { if (rejecting) await reject(rejecting.id, reason); setRejecting(null) }} />
+      <RejectModal req={rejecting} onClose={() => setRejecting(null)} onConfirm={(reason) => { if (rejecting) { reject(rejecting.id, reason); toast({ tone: 'warning', title: 'Request rejected', body: `${rejecting.requesterName} notified.` }) } setRejecting(null) }} />
     </Page>
   )
 }
@@ -112,7 +115,7 @@ function Row({ label, value, span, tone }: { label: string; value: string; span?
   )
 }
 
-function RejectModal({ req, onClose, onConfirm }: { req: SeatRequest | null; onClose: () => void; onConfirm: (reason: string) => void }) {
+function RejectModal({ req, onClose, onConfirm }: { req: NRequest | null; onClose: () => void; onConfirm: (reason: string) => void }) {
   const [reason, setReason] = useState('')
   return (
     <Modal open={!!req} onClose={onClose}>

@@ -15,17 +15,15 @@ interface NavGroup { title: string; items: NavItem[] }
 
 export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
   const loc = useLocation()
-  const seats = useData((s) => s.seats)
-  const seatRequests = useData((s) => s.seatRequests)
   const role = useData((s) => s.role)
   const resetDemo = useData((s) => s.resetDemo)
   const toast = useUI((s) => s.toast)
 
   const nRequests = useNeighborhood((s) => s.requests)
+  const nDesks = useNeighborhood((s) => s.desks)
   const assetRequests = useData((s) => s.assetRequests)
-  const noticeCount = seats.filter((s) => s.status === 'notice').length
-  const pendingReq = seatRequests.filter((r) => r.status === 'pending').length
   const nPending = nRequests.filter((r) => r.status === 'pending').length
+  const nNotice = nDesks.filter((d) => d.status === 'notice').length
   const nAssetPending = assetRequests.filter((r) => r.stage === 'pc-review' || r.stage === 'admin-review').length
 
   const groups: NavGroup[] = role === 'employee'
@@ -49,9 +47,9 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
             { to: '/neighborhood', label: 'Seat Map', icon: LayoutGrid, badge: nPending },
             { to: '/seating', label: 'Floor Map', icon: Map },
             { to: '/directory', label: 'Employee Locator', icon: Users },
-            { to: '/requests', label: 'Seat Requests', icon: Inbox, badge: pendingReq },
+            { to: '/requests', label: 'Seat Requests', icon: Inbox, badge: nPending },
             { to: '/meeting-rooms', label: 'Meeting Rooms', icon: CalendarClock },
-            { to: '/seating-analytics', label: 'Seating Analytics', icon: PieChart, badge: noticeCount },
+            { to: '/seating-analytics', label: 'Seating Analytics', icon: PieChart, badge: nNotice },
           ],
         },
         {

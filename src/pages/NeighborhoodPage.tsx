@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { LayoutGrid, Search, X, CircleDot, Palette, Building2, Users2, DoorOpen, CalendarClock, RotateCcw, UserCog, User } from 'lucide-react'
 import { Segmented, Avatar } from '@/components/ui'
 import { useData } from '@/lib/store'
@@ -33,11 +34,24 @@ export function NeighborhoodPage() {
   const searchWrap = useRef<HTMLDivElement>(null)
 
   const isAdmin = role === 'admin'
+  const [params, setParams] = useSearchParams()
 
   useEffect(() => {
     const onClick = (e: MouseEvent) => { if (searchWrap.current && !searchWrap.current.contains(e.target as Node)) setShowResults(false) }
     document.addEventListener('mousedown', onClick)
     return () => document.removeEventListener('mousedown', onClick)
+  }, [])
+
+  // focus a desk linked from the Employee Locator (?desk=…)
+  useEffect(() => {
+    const d = params.get('desk')
+    if (d && desks.some((x) => x.id === d)) {
+      setSelectedId(d)
+      requestAnimationFrame(() => setFocusId(d))
+      params.delete('desk')
+      setParams(params, { replace: true })
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   const counts = useMemo(() => {
