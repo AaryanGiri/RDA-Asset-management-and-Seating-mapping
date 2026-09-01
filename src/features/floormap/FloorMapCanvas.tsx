@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { Plus, Minus, Maximize2, Expand, Shrink } from 'lucide-react'
 import { clamp, initials, cn } from '@/lib/utils'
 import { ROOMS, PLATE, VBW, VBH, type NDesk, type NPerson, type FloorRoomKind } from './data'
@@ -51,18 +52,17 @@ export function FloorMapCanvas({ desks, people, selectedId, personaDeskId, color
     ro.observe(el)
     setSize({ cw: el.clientWidth, ch: el.clientHeight })
     return () => ro.disconnect()
-  }, [])
+  }, [isFs])
 
+  // Fullscreen = a reliable CSS full-viewport overlay (works in iframes / all
+  // browsers, unlike the Fullscreen API which is often blocked). Esc exits.
+  const toggleFullscreen = () => setIsFs((v) => !v)
   useEffect(() => {
-    const onFs = () => setIsFs(!!document.fullscreenElement)
-    document.addEventListener('fullscreenchange', onFs)
-    return () => document.removeEventListener('fullscreenchange', onFs)
-  }, [])
-  const toggleFullscreen = () => {
-    const el = containerRef.current
-    if (!document.fullscreenElement) el?.requestFullscreen?.().catch(() => {})
-    else document.exitFullscreen?.()
-  }
+    if (!isFs) return
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setIsFs(false) }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [isFs])
 
   const focusDesk = useCallback(
     (desk: NDesk, targetZoom = 3.4) => {
@@ -111,10 +111,10 @@ export function FloorMapCanvas({ desks, people, selectedId, personaDeskId, color
   const zoomBy = (f: number) => { setSmooth(true); setZoom((z) => clamp(z * f, 0.35, 9)) }
   const reset = () => { setSmooth(true); setZoom(1); setPan({ x: 0, y: 0 }) }
 
-  return (
+  const view = (
     <div
       ref={containerRef}
-      className="relative h-full w-full overflow-hidden rounded-2xl bg-bg grid-bg touch-none"
+      className={cn('overflow-hidden bg-bg grid-bg touch-none', isFs ? 'fixed inset-0 z-[60] h-screen w-screen rounded-none' : 'relative h-full w-full rounded-2xl')}
       onWheel={onWheel} onPointerDown={onPointerDown} onPointerMove={onPointerMove} onPointerUp={onPointerUp}
       onPointerLeave={() => { onPointerUp(); setHover(null) }}
       style={{ cursor: drag.current ? 'grabbing' : 'grab' }}
@@ -231,4 +231,6 @@ export function FloorMapCanvas({ desks, people, selectedId, personaDeskId, color
       })()}
     </div>
   )
+
+  return isFs ? createPortal(view, document.body) : view
 }
